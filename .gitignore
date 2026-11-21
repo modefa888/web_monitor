@@ -1,5 +1,6 @@
 # 运行时数据：数据库 / 会话密钥 / 日志 / 进程文件（含敏感信息，禁止上传）
-data/
+# 注意锚定仓库根目录，否则会误伤 Pages 版的 docs/data/stock.json
+/data/
 
 # Python 运行产物
 __pycache__/
