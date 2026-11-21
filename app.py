@@ -41,7 +41,8 @@
     POST   /api/api-manage            启用 / 停用某个接口路由【登录】
 
 鉴权：除 login / logout / me / public/stock 外，所有 /api/* 都需要管理员登录
-（Flask session cookie，默认保留 7 天，且绑定登录时的协议/主机/端口，换入口需重新登录）。首次启动自动创建默认账号
+（Flask session cookie，默认保留 7 天，且绑定登录时的协议与主机名——同一主机的
+不同端口共用登录，换主机 / IP / 协议需重新登录）。首次启动自动创建默认账号
 admin / admin123，登录后请立即在右上角「修改密码」里改掉。
 """
 
@@ -56,6 +57,7 @@ import secrets
 import sys
 import threading
 import time
+from urllib.parse import urlsplit
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -208,8 +210,12 @@ def _admin_message(raw: Any) -> str:
 
 
 def _request_origin() -> str:
-    """浏览器 cookie 不区分端口，用 scheme://host:port 标识当前访问入口。"""
-    return f"{request.scheme}://{request.host.lower()}"
+    """登录会话绑定的访问入口：协议 + 主机名（不含端口）。
+    Cookie 本身就不区分端口，绑定到主机名即可——同一主机的多个端口
+    （如本机 8787 直连入口与 IDE 预览入口）共用一次登录；
+    换主机 / IP / 协议仍需重新登录。"""
+    hostname = (urlsplit(f"//{request.host}").hostname or "").lower()
+    return f"{request.scheme}://{hostname}"
 
 
 def _session_origin_ok() -> bool:
