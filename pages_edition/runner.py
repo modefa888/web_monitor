@@ -95,6 +95,11 @@ def main() -> None:
             "fail_count": fails,
             "success_rate": (round(sum(history) / len(history) * 100, 1)
                              if history else None),
+            "vendor": m.get("vendor") or "",
+            "region": m.get("region") or "",
+            "price_type": m.get("price_type") or "",
+            "purchase_limit": m.get("purchase_limit") or 0,
+            "realname": m.get("realname") or "",
         })
 
     payload = {

@@ -2,28 +2,33 @@
   "site": {
     "name": "网页监控平台",
     "stock_title": "服务器存量看板",
-    "footer": "数据仅供参考，实际扣益看管官方页面"
+    "footer": "数据仅供参考, 实际折扣查看官网"
   },
-  "all_icon": "🗂",
+  "all_icon": "",
   "group_icons": {
-    "抢购": "🔥",
+    "抢购": "🎉",
     "普通": "🖥️"
   },
-  "group_order": ["抢购", "普通"],
+  "group_order": [
+    "抢购",
+    "普通"
+  ],
   "monitors": [
     {
-      "name": "腾讯云 轻量 2核2G4M 99元/年",
+      "name": "华为云 2核2G 特价机库存",
       "group": "抢购",
       "enabled": true,
-      "template": "tencent_lighthouse_stock",
+      "template": "huawei_stock",
       "timeout": 30,
       "params": {
-        "goods_id": "2001194084080021",
-        "goods": "轻量应用服务器 2核2G4M",
-        "sku": "2核2G4M / 3M带宽 / 300GB月流量 / 1年",
-        "price": 99,
-        "url": "https://cloud.tencent.com/act/pro/double11-202611#qingliang"
-      }
+        "promotion_id": "P2608120945080031D691X61IVR22B",
+        "goods": "Flexus L实例-2核2G2M 1年（36元/年）"
+      },
+      "vendor": "华为云",
+      "region": "",
+      "price_type": "",
+      "purchase_limit": 0,
+      "realname": "yes"
     },
     {
       "name": "阿里云 轻量应用服务器 2核2G 38元/年 秒杀",
@@ -34,29 +39,122 @@
       "params": {
         "activity_id": "1613051415182591",
         "goods": "轻量应用服务器 2核2G（38元/1年起）"
-      }
+      },
+      "vendor": "阿里云",
+      "region": "",
+      "price_type": "",
+      "purchase_limit": 0,
+      "realname": "yes"
     },
     {
-      "name": "华为云 2核2G 特价机库存",
+      "name": "腾讯云 轻量 2核2G4M 99元/年",
       "group": "抢购",
-      "enabled": false,
-      "template": "huawei_stock",
+      "enabled": true,
+      "template": "tencent_lighthouse_stock",
       "timeout": 30,
       "params": {
-        "promotion_id": "P2608120945080031D691X61IVR22B",
-        "goods": "Flexus L实例-2核2G2M 1年（36元/年）"
-      }
+        "goods_id": "2001182883775752",
+        "goods": "轻量应用服务器 2核2G4M",
+        "sku": "2核2G4M / 4M带宽 / 300GB月流量 / 1年",
+        "price": 99,
+        "url": "https://cloud.tencent.com/act/pro/double11-202611#qingliang"
+      },
+      "vendor": "腾讯云",
+      "region": "上海",
+      "price_type": "new_user",
+      "purchase_limit": 1,
+      "realname": "yes"
     },
     {
-      "name": "接口可用性演示（百度首页）",
-      "group": "普通",
-      "enabled": false,
-      "template": "http",
-      "timeout": 15,
+      "name": "阿里云 轻量应用服务器 2核2G 200M 68元/年 新人专享",
+      "group": "抢购",
+      "enabled": true,
+      "template": "aliyun_newuser_price",
+      "timeout": 30,
       "params": {
-        "url": "https://www.baidu.com",
-        "expect_status": 200
-      }
+        "goods_id": "10000014849",
+        "goods": "轻量应用服务器 2核2G 200M峰值带宽 68元/年 新人专享",
+        "sku": "2核2G / 200M峰值带宽 / 40G ESSD / 1年",
+        "price": 68,
+        "url": "https://www.aliyun.com/activity/hub/1111-cloud"
+      },
+      "vendor": "阿里云",
+      "region": "华北2（北京）",
+      "price_type": "new_user",
+      "purchase_limit": 1,
+      "realname": "yes"
+    },
+    {
+      "name": "京东云 轻量云主机 68元/年 秒杀",
+      "group": "普通",
+      "enabled": true,
+      "template": "jd_flash_stock",
+      "timeout": 30,
+      "params": {
+        "activity_no": "e6X8WC7r5w9hjsIS94jK",
+        "goods": "京东云 轻量云主机 68元/年 秒杀",
+        "url": "https://www.jdcloud.com/cn/pages/cloudpromotion?utm_source=cpscf&type=1&channelReferrer=3418798148814466&channelCode=JD_YTKCPS"
+      },
+      "vendor": "京东云",
+      "region": "",
+      "price_type": "new_user",
+      "purchase_limit": 1,
+      "realname": "yes"
+    },
+    {
+      "name": "京东云 轻量云主机 158元/年 秒杀",
+      "group": "普通",
+      "enabled": true,
+      "template": "jd_flash_stock",
+      "timeout": 30,
+      "params": {
+        "activity_no": "6E5BQbI16y1M4r978Y67",
+        "goods": "京东云 轻量云主机 158元/年 秒杀",
+        "url": "https://www.jdcloud.com/cn/pages/cloudpromotion?utm_source=cpscf&type=1&channelReferrer=3418798148814466&channelCode=JD_YTKCPS"
+      },
+      "vendor": "京东云",
+      "region": "",
+      "price_type": "",
+      "purchase_limit": 0,
+      "realname": "yes"
+    },
+    {
+      "name": "腾讯云 轻量 4核4G3M 109元/年",
+      "group": "普通",
+      "enabled": true,
+      "template": "tencent_lighthouse_stock",
+      "timeout": 30,
+      "params": {
+        "goods_id": "2001194084080021",
+        "goods": "轻量应用服务器 4核4G3M",
+        "sku": "4核4G3M / 3M带宽 / 300GB月流量 / 1年",
+        "price": 109,
+        "url": "https://cloud.tencent.com/act/pro/double11-202611#qingliang"
+      },
+      "vendor": "腾讯云",
+      "region": "上海",
+      "price_type": "new_user",
+      "purchase_limit": 1,
+      "realname": "yes"
+    },
+    {
+      "name": "腾讯云 轻量 2核4G5M 188元/年",
+      "group": "普通",
+      "enabled": true,
+      "template": "tencent_lighthouse_stock",
+      "timeout": 30,
+      "params": {
+        "goods_id": "2001205991108821",
+        "goods": "轻量应用服务器 2核4G5M",
+        "sku": "2核4G5M / 5M带宽 / 500GB月流量 / 1年",
+        "price": 188,
+        "url": "https://cloud.tencent.com/act/pro/double11-202611#qingliang"
+      },
+      "vendor": "腾讯云",
+      "region": "上海",
+      "price_type": "new_user",
+      "purchase_limit": 1,
+      "realname": "yes"
     }
   ]
 }
