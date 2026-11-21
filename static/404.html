@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>404 · 页面走丢了</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="mask-icon" href="/favicon.svg" color="#4c8dff">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 32px 16px;
+    font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #e8eef7;
+    background:
+      radial-gradient(900px 600px at 15% -10%, rgba(76,141,255,.25), transparent 60%),
+      radial-gradient(700px 500px at 95% 10%, rgba(157,123,255,.22), transparent 60%),
+      radial-gradient(600px 500px at 50% 110%, rgba(76,224,192,.14), transparent 60%),
+      #080d16;
+    display: flex; align-items: center; justify-content: center;
+    overflow-x: hidden;
+  }
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; opacity: .45;
+    background-image:
+      radial-gradient(#ffffff 1px, transparent 1px),
+      radial-gradient(#7aa2ff 1px, transparent 1px);
+    background-size: 120px 120px, 190px 190px;
+    background-position: 0 0, 45px 70px;
+    animation: drift 40s linear infinite;
+  }
+  @keyframes drift { to { background-position: 120px 120px, 235px 260px; } }
+  .wrap { width: min(780px, 100%); position: relative; z-index: 1; }
+  .card {
+    background: rgba(19, 27, 41, .84);
+    border: 1px solid rgba(125, 165, 230, .22);
+    border-radius: 20px; padding: 34px 34px 28px;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, .5);
+    backdrop-filter: blur(12px);
+  }
+  .code {
+    text-align: center;
+    font-size: clamp(70px, 15vw, 132px); font-weight: 800; line-height: .95;
+    letter-spacing: 8px;
+    background: linear-gradient(120deg, #69a7ff, #a17dff 45%, #4ce0c0);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 10px 28px rgba(90, 130, 255, .35));
+    animation: neon-flicker 3.2s infinite;
+  }
+  @keyframes neon-flicker {
+    0%, 18%, 22%, 24%, 53%, 57%, 100% {
+      opacity: 1;
+      filter: drop-shadow(0 10px 28px rgba(90, 130, 255, .35));
+    }
+    20%, 23%, 55% {
+      opacity: .42;
+      filter: drop-shadow(0 0 8px rgba(120, 160, 255, .55));
+    }
+  }
+  h1 { margin: 10px 0 6px; font-size: 24px; letter-spacing: 1px; text-align: center; }
+  p.lead { margin: 0; color: #9fb0c8; font-size: 13.5px; text-align: center; }
+  .actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 22px 0 2px; }
+  .btn {
+    display: inline-block; text-decoration: none; padding: 10px 18px;
+    border-radius: 10px; border: 1px solid rgba(140, 175, 235, .3);
+    color: #dbe7f7; font-size: 13px; transition: transform .15s, border-color .15s;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: #7aa2ff; }
+  .btn.primary {
+    background: linear-gradient(120deg, #4c8dff, #7b6cff);
+    border-color: transparent; color: #fff;
+  }
+  .game { margin-top: 26px; border-top: 1px solid rgba(125, 165, 230, .18); padding-top: 18px; }
+  .game-head, .game-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: #9fb0c8;
+  }
+  .game-head { margin-bottom: 10px; }
+  .game-head b { color: #eaf2ff; font-variant-numeric: tabular-nums; }
+  .game-title { color: #cfe0ff; font-weight: 600; letter-spacing: .5px; }
+  canvas {
+    display: block; width: 100%; height: auto; border-radius: 12px;
+    border: 1px solid rgba(125, 165, 230, .22);
+    background: #0b1220; touch-action: none;
+  }
+  .game-foot { margin-top: 12px; }
+  button.play {
+    padding: 8px 18px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    border: 1px solid #6f9cff; color: #fff;
+    background: linear-gradient(120deg, #3d7ae8, #6c5ce7);
+  }
+  button.play:hover { filter: brightness(1.12); }
+  .hint { flex: 1; min-width: 220px; text-align: right; color: #7f90a8; font-size: 11.5px; }
+  @media (max-width: 560px) {
+    .card { padding: 24px 18px 20px; }
+    .hint { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<main class="wrap">
+  <section class="card">
+    <div class="code">404</div>
+    <h1>这个页面走丢了</h1>
+    <p class="lead">地址可能已更换、页面被搬走，或者它从来就没存在过。先玩一局再回去吧。</p>
+    <div class="actions">
+      <a class="btn primary" href="/">前往首页</a>
+    </div>
+
+    <div class="game">
+      <div class="game-head">
+        <span class="game-title">星际接接乐</span>
+        <span>得分 <b id="score">0</b> · 最高 <b id="best">0</b> · 生命 <b id="lives">3</b> · 剩余 <b id="time">30</b>s</span>
+      </div>
+      <canvas id="game" width="640" height="300" aria-label="接住能量块的小游戏"></canvas>
+      <div class="game-foot">
+        <button class="play" id="start" type="button">开始游戏</button>
+        <span class="hint">方向键 / A D 或鼠标移动接住蓝色能量块（+10），躲开红色陨石（-15）。一局 30 秒。</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const cv = document.getElementById("game");
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const scoreEl = document.getElementById("score");
+  const bestEl = document.getElementById("best");
+  const livesEl = document.getElementById("lives");
+  const timeEl = document.getElementById("time");
+  const startBtn = document.getElementById("start");
+
+  let best = 0;
+  try { best = Number(localStorage.getItem("webmon_404_best") || 0) || 0; } catch (e) {}
+  bestEl.textContent = best;
+
+  let running = false, raf = 0, last = 0, spawnIn = 0;
+  let score = 0, lives = 3, timeLeft = 30;
+  let drops = [];
+  const basket = { x: W / 2, w: 84, h: 13, y: H - 26 };
+  const keys = { left: false, right: false };
+
+  function hud() {
+    scoreEl.textContent = score;
+    livesEl.textContent = lives;
+    timeEl.textContent = Math.max(0, Math.ceil(timeLeft));
+    bestEl.textContent = Math.max(best, score);
+  }
+
+  function reset() {
+    score = 0; lives = 3; timeLeft = 30; spawnIn = 0; drops = [];
+    basket.x = W / 2; last = performance.now(); hud();
+  }
+
+  function start() {
+    reset(); running = true;
+    startBtn.textContent = "重新开始";
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
+  }
+
+  function finish() {
+    running = false;
+    cancelAnimationFrame(raf);
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem("webmon_404_best", String(best)); } catch (e) {}
+    }
+    hud(); draw(); overlay("游戏结束", "本次得分 " + score + " · 最高 " + best);
+    startBtn.textContent = "再来一局";
+  }
+
+  function loop(ts) {
+    if (!running) return;
+    const dt = Math.min(0.05, (ts - last) / 1000);
+    last = ts;
+    update(dt);
+    if (!running) return;
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function update(dt) {
+    if (keys.left) basket.x -= 430 * dt;
+    if (keys.right) basket.x += 430 * dt;
+    basket.x = Math.max(basket.w / 2, Math.min(W - basket.w / 2, basket.x));
+
+    spawnIn -= dt;
+    if (spawnIn <= 0) {
+      spawnIn = Math.max(0.26, 0.72 - score * 0.004);
+      drops.push({
+        x: 20 + Math.random() * (W - 40), y: -16,
+        r: 8 + Math.random() * 5,
+        bad: Math.random() < 0.22,
+        speed: 130 + Math.random() * 90 + score * 1.3
+      });
+    }
+
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      d.y += d.speed * dt;
+      const caught = d.y + d.r >= basket.y && d.y - d.r <= basket.y + basket.h &&
+                     Math.abs(d.x - basket.x) <= basket.w / 2 + d.r;
+      if (caught) {
+        if (d.bad) { lives--; score = Math.max(0, score - 15); }
+        else { score += 10; }
+        drops.splice(i, 1); hud();
+        if (lives <= 0) { finish(); return; }
+        continue;
+      }
+      if (d.y - d.r > H) drops.splice(i, 1);
+    }
+
+    timeLeft -= dt;
+    if (timeLeft <= 0) { timeLeft = 0; finish(); return; }
+    hud();
+  }
+
+  function draw() {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#0d1730"); bg.addColorStop(1, "#090e1c");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(120,160,255,.08)"; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke();
+    }
+
+    drops.forEach(d => {
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fillStyle = d.bad ? "#ff5d73" : "#59d6ff";
+      ctx.shadowColor = d.bad ? "#ff3355" : "#39bfff";
+      ctx.shadowBlur = 16; ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(255,255,255,.75)";
+      ctx.beginPath(); ctx.arc(d.x - d.r * .3, d.y - d.r * .3, d.r * .22, 0, Math.PI * 2); ctx.fill();
+    });
+
+    ctx.fillStyle = "#7aa2ff";
+    ctx.shadowColor = "#4c8dff"; ctx.shadowBlur = 20;
+    ctx.fillRect(basket.x - basket.w / 2, basket.y, basket.w, basket.h);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.fillRect(basket.x - basket.w / 2 + 6, basket.y + 3, basket.w - 12, 3);
+  }
+
+  function overlay(title, sub) {
+    ctx.fillStyle = "rgba(6,10,20,.74)"; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#eaf2ff"; ctx.font = "bold 28px sans-serif";
+    ctx.fillText(title, W / 2, H / 2 - 8);
+    ctx.fillStyle = "#9fb0c8"; ctx.font = "14px sans-serif";
+    ctx.fillText(sub, W / 2, H / 2 + 24);
+    ctx.textAlign = "left";
+  }
+
+  function pointerX(clientX) {
+    const rect = cv.getBoundingClientRect();
+    basket.x = (clientX - rect.left) / rect.width * W;
+    basket.x = Math.max(basket.w / 2, Math.min(W - basket.w / 2, basket.x));
+  }
+  cv.addEventListener("mousemove", e => pointerX(e.clientX));
+  cv.addEventListener("touchmove", e => {
+    e.preventDefault();
+    if (e.touches[0]) pointerX(e.touches[0].clientX);
+  }, { passive: false });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = true;
+    if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = true;
+  });
+  document.addEventListener("keyup", e => {
+    if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = false;
+    if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = false;
+  });
+  startBtn.addEventListener("click", start);
+
+  draw();
+  overlay("准备出发", "点击「开始游戏」，30 秒内尽量多接能量块");
+})();
+</script>
+</body>
+</html>

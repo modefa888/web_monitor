@@ -1,0 +1,3728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网页监控平台</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="mask-icon" href="/favicon.svg" color="#4c8dff">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0f1419;
+  --panel: #171d24;
+  --panel-2: #1e2630;
+  --border: #2a3441;
+  --text: #d8e1ea;
+  --text-dim: #8695a6;
+  --accent: #4c8dff;
+  --green: #2ecc71;
+  --red: #e74c3c;
+  --yellow: #f0b429;
+  --gray: #5c6b7a;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+html { scrollbar-gutter: stable; }
+html.modal-open, body.modal-open { overflow: hidden; }
+/* 浅色（白）主题：仅覆盖颜色变量，切换由 <html class="light"> 控制 */
+:root.light {
+  color-scheme: light;
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --panel-2: #eaeff5;
+  --border: #d3dce6;
+  --text: #243342;
+  --text-dim: #647687;
+  --accent: #2f6fd6;
+  --green: #1e9e56;
+  --red: #d44a3a;
+  --yellow: #c98a00;
+  --gray: #9aa8b5;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+/* 始终预留竖向滚动条的位置，切换 tab 导致内容变高变矮时页面不会左右抖动 */
+html { scrollbar-gutter: stable; }
+@supports not (scrollbar-gutter: stable) {
+  html { overflow-y: scroll; }
+}
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+button {
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 13px;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger:hover { border-color: var(--red); color: var(--red); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input, select, textarea {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%;
+}
+/* 单行输入框与所有自定义下拉框保持同一高度 */
+input:not([type="checkbox"]):not([type="radio"]), select {
+  box-sizing: border-box; height: 32px; line-height: 18px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+label { display: block; margin: 14px 0 5px; color: var(--text-dim); font-size: 13px; }
+
+header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 24px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 5;
+}
+header h1 {
+  margin: 0; font-size: 16.5px; white-space: nowrap; letter-spacing: .3px;
+  display: flex; align-items: center; gap: 9px;
+}
+/* 标题图标：圆角小徽标，与公开看板同款 */
+header h1 .logo {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 27px; height: 27px; border-radius: 7px; font-size: 15px;
+  background: linear-gradient(135deg, rgba(76, 141, 255, .28), rgba(76, 141, 255, .08));
+  border: 1px solid rgba(76, 141, 255, .4);
+}
+header .divider { width: 1px; height: 20px; background: var(--border); flex: none; }
+header button { border-radius: 999px; padding: 4px 13px; font-size: 12.5px; }
+header button.primary {
+  background: linear-gradient(135deg, var(--accent), #6aa6ff);
+  border-color: var(--accent); box-shadow: 0 2px 10px rgba(76, 141, 255, .4);
+}
+#admin-actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+/* 概览胶囊：语义着色（全部=蓝 / 正常=绿 / 异常=红 / 已暂停=黄），与公开看板同风格 */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+  padding: 2.5px 11px; font-size: 12px; color: var(--text-dim);
+}
+.chip b { color: var(--text); font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.chip .cdot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--gray); }
+.chip.info { border-color: rgba(76, 141, 255, .45); background: linear-gradient(135deg, rgba(76, 141, 255, .16), rgba(76, 141, 255, .04)); }
+.chip.info .cdot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.chip.info b { color: var(--accent); }
+.chip.good { border-color: rgba(46, 204, 113, .45); background: linear-gradient(135deg, rgba(46, 204, 113, .16), rgba(46, 204, 113, .04)); }
+.chip.good .cdot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.chip.good b { color: var(--green); }
+.chip.bad { border-color: rgba(231, 76, 60, .45); background: linear-gradient(135deg, rgba(231, 76, 60, .14), rgba(231, 76, 60, .04)); }
+.chip.bad .cdot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.chip.bad b { color: var(--red); }
+.chip.warn { border-color: rgba(240, 180, 41, .45); background: linear-gradient(135deg, rgba(240, 180, 41, .16), rgba(240, 180, 41, .04)); }
+.chip.warn .cdot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.chip.warn b { color: var(--yellow); }
+.spacer { flex: 1; }
+
+main { padding: 20px 24px 60px; max-width: 1200px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.empty { text-align: center; color: var(--text-dim); padding: 80px 0; }
+
+.card {
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  background: linear-gradient(160deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px;
+  transition: border-color .18s, transform .18s, box-shadow .18s;
+}
+.card:hover {
+  border-color: var(--accent); transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+}
+/* 拖动排序 */
+.card { cursor: grab; }
+.card.dragging { opacity: .45; transform: none; cursor: grabbing; }
+.card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card.ok { border-left: 3px solid var(--green); }
+.card.fail { border-left: 3px solid var(--red); }
+.card.paused { border-left: 3px solid var(--gray); }
+.card.pending { border-left: 3px solid var(--accent); }
+.card .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.fail { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.dot.pending { background: var(--accent); }
+.dot.paused { background: var(--gray); }
+.dot.spin { animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.card .name {
+  flex: 1; min-width: 0; font-weight: 600; font-size: 15px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.badge { font-size: 11px; border-radius: 4px; padding: 1px 7px; border: 1px solid var(--border); color: var(--text-dim); flex: none; }
+.badge.pill { border-radius: 999px; padding: 2px 10px; font-weight: 600; }
+.badge.red { color: var(--red); border-color: var(--red); }
+.badge.green { color: var(--green); border-color: rgba(46, 204, 113, .55); background: rgba(46, 204, 113, .12); }
+.badge.yellow { color: var(--yellow); border-color: var(--yellow); }
+a.site-badge { background: var(--accent); border-color: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+a.site-badge:hover { filter: brightness(1.12); color: #fff; }
+.message {
+  color: var(--text-dim); font-size: 13px; line-height: 1.5; min-height: 20px; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.meta .mi {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 9px;
+}
+.meta .mi .k { font-size: 10px; color: var(--text-dim); line-height: 1.2; }
+.meta .mi b {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.actions {
+  display: flex; align-items: center; gap: 6px;
+  padding-top: 8px; border-top: 1px dashed var(--border);
+}
+.actions .spacer { flex: 1; }
+/* 卡片操作区所有控件统一 30px 高，图标与文字垂直居中 */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 30px; padding: 0 10px; font-size: 12.5px; line-height: 1;
+  border-radius: 7px; white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s, transform .1s;
+}
+.icon-btn:active { transform: translateY(1px); }
+.icon-btn:disabled { transform: none; }
+button.primary.icon-btn { padding: 0 12px; }
+a.icon-btn {
+  text-decoration: none; color: var(--text);
+  border: 1px solid var(--border); background: var(--panel-2);
+}
+a.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* label 默认有上下外边距，开关需清零，否则会比同排按钮低 */
+.switch { display: inline-flex; align-items: center; gap: 6px; margin: 0; cursor: pointer; font-size: 12px; color: var(--text-dim); user-select: none; }
+.switch input { width: auto; margin: 0; }
+/* 操作区里的启用开关与按钮同高同风格 */
+.actions .switch {
+  justify-content: center;
+  height: 30px; padding: 0 10px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--panel-2);
+  font-size: 12.5px; line-height: 1;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.actions .switch:hover { border-color: var(--accent); color: var(--text); }
+.actions .switch input {
+  width: 13px; height: 13px; flex: none;
+  accent-color: var(--accent); cursor: pointer;
+}
+/* 删除二次确认悬浮框（贴着删除按钮弹出） */
+#del-pop {
+  position: fixed; z-index: 60; display: none;
+  width: 208px; padding: 11px 12px 10px;
+  background: var(--panel); border: 1px solid var(--red);
+  border-radius: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+}
+#del-pop .txt { font-size: 12.5px; line-height: 1.55; color: var(--text); margin-bottom: 9px; }
+#del-pop .txt em { color: var(--red); font-style: normal; font-weight: 600; }
+#del-pop .row { display: flex; gap: 6px; justify-content: flex-end; }
+#del-pop button { height: 28px; padding: 0 12px; font-size: 12.5px; border-radius: 6px; }
+#del-pop button.del { background: var(--red); border-color: var(--red); color: #fff; }
+#del-pop button.del:hover { filter: brightness(1.1); }
+
+dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-radius: 12px; padding: 0; width: min(860px, 94vw); max-height: 92vh;
+}
+dialog::backdrop { background: rgba(0,0,0,.6); }
+:root.light dialog::backdrop { background: rgba(15, 23, 42, .18); }
+#dlg-confirm { width: min(480px, 90vw); }
+.tabbar { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.tabbar button { border-radius: 999px; padding: 4px 14px; font-size: 13px; }
+.tabbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chan-card {
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 9px; padding: 12px 14px; margin: 10px 0;
+  background: linear-gradient(150deg, var(--panel-2), var(--panel));
+}
+.chan-card .head2 {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  padding-bottom: 9px; border-bottom: 1px dashed var(--border);
+}
+.chan-card .head2 .spacer { flex: 1; }
+/* 通知设置：内容区固定等高，切换渠道 tab 时弹窗不再忽高忽低 */
+#set-body { height: clamp(360px, calc(92vh - 300px), 470px); overflow-y: auto; }
+#set-body > p.inline-note {
+  background: linear-gradient(135deg, rgba(76, 141, 255, .1), rgba(76, 141, 255, .03));
+  border: 1px solid rgba(76, 141, 255, .25); border-radius: 8px;
+  padding: 8px 12px; margin: 0 0 8px; line-height: 1.6;
+}
+#set-body .add-chan { border-style: dashed; color: var(--text-dim); font-weight: 600; }
+#set-body .add-chan:hover { color: var(--accent); border-color: var(--accent); }
+/* 通用页：已配置渠道 + 通知日志两个区块 */
+.set-section {
+  margin-top: 14px; border: 1px solid var(--border); border-radius: 9px;
+  padding: 10px 12px;
+  background: linear-gradient(150deg, var(--panel-2), var(--panel));
+}
+.ss-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 600; margin-bottom: 6px;
+}
+.ss-head .spacer { flex: 1; }
+.ss-cnt {
+  font-size: 11px; font-weight: 500; color: var(--accent);
+  background: rgba(76, 141, 255, .14); border-radius: 4px; padding: 1px 7px;
+}
+.log-refresh { height: 24px; padding: 0 10px; font-size: 11.5px; }
+.chan-line, .log-line {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px; border-radius: 7px; font-size: 12px; line-height: 1.5;
+}
+.chan-line:hover, .log-line:hover { background: var(--panel-2); }
+/* 渠道卡片头部的「通知名称」输入框 + 类型彩色图标 */
+.chan-card .head2 { flex-wrap: wrap; }
+.chan-ic {
+  width: 26px; height: 26px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 14px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(76, 141, 255, .18), rgba(76, 141, 255, .05));
+  border: 1px solid var(--border);
+}
+.chan-name {
+  width: 210px; height: 26px; padding: 0 9px; font-size: 12px;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; font-weight: 600;
+}
+.chan-name:focus { outline: none; border-color: var(--accent); }
+/* tab 与列表行里的渠道小图标 */
+.tabbar button .tab-ic { font-size: 12px; margin-right: 4px; }
+.chan-line .cic, .log-line .cic { flex: none; font-size: 13px; }
+.chan-line .ct { font-weight: 600; color: var(--text); flex: none; }
+.chan-line .sum {
+  flex: 1; color: var(--text-dim); font-family: var(--mono); font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chan-line .st, .log-line .lo { flex: none; font-size: 11px; border-radius: 4px; padding: 0 7px; }
+.chan-line .st.on, .log-line .lo.ok { color: var(--green); background: rgba(46, 204, 113, .13); }
+.chan-line .st.off, .log-line .lo.err { color: var(--red); background: rgba(231, 76, 60, .13); }
+.chan-line .st { cursor: pointer; user-select: none; }
+.chan-line .st:hover { filter: brightness(1.15); box-shadow: 0 0 0 1px currentColor; }
+/* 通知日志：列表自身限高滚动，不把整个弹窗内容区撑长 */
+#notify-log-list { max-height: 230px; overflow-y: auto; padding-right: 2px; }
+#notify-log-list::-webkit-scrollbar { width: 8px; }
+#notify-log-list::-webkit-scrollbar-track { background: transparent; }
+#notify-log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+#notify-log-list::-webkit-scrollbar-thumb:hover { background: var(--gray); }
+.log-line .lt { flex: none; color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+.log-line .lc { flex: none; font-weight: 600; }
+.log-line .lm { flex: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-line .ld {
+  flex: 1; color: var(--text-dim); font-size: 11.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 访问统计弹窗 */
+#visit-body { scrollbar-width: none; }
+#visit-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* 跳转点击统计弹窗 */
+#click-body { scrollbar-width: none; }
+#click-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.vs-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+.vs-tile {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: linear-gradient(150deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--border); border-radius: 9px; padding: 9px 6px;
+}
+.vs-tile::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0;
+  height: 2px; background: var(--accent); opacity: .85;
+}
+.vs-tile.uv::before { background: var(--green); }
+.vs-tile.ip::before { background: #f59e0b; }
+.vs-tile.mobile::before, .vs-tile.device::before { background: #a78bfa; }
+.vs-tile b { font-size: 19px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.vs-tile span { font-size: 11px; color: var(--text-dim); }
+.vs-breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.bd-block { background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; }
+.bd-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.bd-row { display: flex; align-items: center; gap: 6px; font-size: 10.5px; margin: 4px 0; }
+.bd-row .bn {
+  flex: 0 0 48%; min-width: 0; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bd-row .bb { flex: 1; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.bd-row .bb i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.bd-row.b2 .bb i { background: var(--green); }
+.bd-row.b3 .bb i { background: #a78bfa; }
+.bd-row .bc { flex: none; width: 18px; text-align: right; font-family: var(--mono); color: var(--text-dim); }
+.bd-empty { font-size: 11px; color: var(--text-dim); padding: 6px 0; }
+.vs-block { margin-bottom: 14px; }
+.vs-title {
+  font-size: 12.5px; font-weight: 600; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.vs-legend { font-weight: 400; color: var(--text-dim); font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.vs-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.vs-legend i.pv { background: var(--accent); }
+.vs-legend i.uv { background: var(--green); }
+.vc-chart {
+  display: flex; align-items: stretch; gap: 3px;
+  height: 148px; padding: 10px 8px 8px;
+  border: 1px solid var(--border); border-radius: 9px;
+  background: linear-gradient(to top, var(--border) 1px, transparent 1px)
+              left bottom / 100% 25% repeat-y, var(--panel-2);
+}
+.vc-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.vc-bars { position: relative; flex: 1; width: 100%; }
+.vc-bar { position: absolute; bottom: 0; width: 8px; max-width: 38%; min-height: 2px; border-radius: 3px 3px 0 0; }
+.vc-bar.pv { left: calc(50% - 9px); background: var(--accent); }
+.vc-bar.uv { left: calc(50% + 1px); background: var(--green); opacity: .8; }
+.vc-label { margin-top: 5px; font-size: 9px; font-family: var(--mono); color: var(--text-dim); white-space: nowrap; }
+.vc-n { font-size: 9px; font-family: var(--mono); color: var(--text-dim); line-height: 1.2; }
+.vc-col.today .vc-label, .vc-col.today .vc-n { color: var(--accent); font-weight: 600; }
+.vs-recent-list { max-height: 220px; overflow-y: auto; padding-right: 2px; }
+.vs-recent-list::-webkit-scrollbar { width: 8px; }
+.vs-recent-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.vs-recent {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 8px; font-size: 12px; border-radius: 7px;
+}
+.vs-recent:hover { background: var(--panel-2); }
+.vs-recent .vr-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vs-recent .lt { flex: none; color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+.vs-recent .vip { flex: none; font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.vs-recent .vdev { flex: none; font-size: 11px; color: var(--green); }
+.vs-recent .vbrowser, .vs-recent .vos { flex: none; font-size: 11px; color: var(--text-dim); }
+/* 统计弹窗：点击行弹出的访客详情悬浮框（不影响弹窗布局高度） */
+.vs-recent.cl-row { cursor: pointer; }
+.vs-recent.cl-row:hover { background: var(--panel-2); }
+.vs-recent.cl-active { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--accent); }
+/* 通知设置渠道卡：自定义推送标题/正文 + 实时预览 */
+.ntpl { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px; }
+.ntpl-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.ntpl-mode {
+  font-size: 10px; font-weight: 600; padding: 1px 8px; border-radius: 999px;
+  color: var(--text-dim); border: 1px solid var(--border);
+}
+.ntpl .ntpl-title, .ntpl .ntpl-content { width: 100%; margin-bottom: 6px; }
+.ntpl-vars { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.ntpl-var {
+  font-family: var(--mono); font-size: 10.5px; padding: 2px 8px;
+  border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-dim); cursor: pointer; user-select: none;
+}
+.ntpl-var:hover { color: var(--accent); border-color: var(--accent); }
+.ntpl-preview { margin-top: 2px; }
+.np-bubble {
+  position: relative; border: 1px solid var(--border); border-radius: 9px;
+  background: linear-gradient(150deg, var(--panel-2), var(--panel));
+  padding: 9px 11px 10px;
+}
+.np-badge {
+  position: absolute; top: 7px; right: 8px; font-size: 9.5px; padding: 1px 7px;
+  border-radius: 999px; color: var(--text-dim); border: 1px solid var(--border);
+}
+.np-t { display: block; font-size: 12.5px; font-weight: 600; padding-right: 70px; }
+.np-c {
+  margin: 5px 0 0; font-family: inherit; font-size: 11.5px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-all; color: var(--text);
+}
+#click-pop, #visit-pop, #api-pop {
+  position: fixed; z-index: 50; width: 400px; max-width: calc(100vw - 24px);
+  padding: 10px 12px; font-size: 11.5px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+}
+#click-pop .cp-title, #visit-pop .cp-title, #api-pop .cp-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+#click-pop .cp-grid, #visit-pop .cp-grid, #api-pop .cp-grid { display: grid; gap: 5px; }
+#click-pop .cp-row, #visit-pop .cp-row, #api-pop .cp-row { display: flex; gap: 8px; min-width: 0; align-items: baseline; }
+#click-pop .ck, #visit-pop .ck, #api-pop .ck { flex: none; width: 62px; color: var(--text-dim); }
+#click-pop .cv, #visit-pop .cv, #api-pop .cv { flex: 1; min-width: 0; word-break: break-all; font-family: var(--mono); font-size: 11px; }
+#click-pop .cv a, #visit-pop .cv a, #api-pop .cv a { color: var(--accent); text-decoration: none; }
+#click-pop .cv a:hover, #visit-pop .cv a:hover, #api-pop .cv a:hover { text-decoration: underline; }
+/* 接口统计弹窗：头 / 切换标签 / 底部固定，仅内容区滚动；高度固定防切换抖动
+   （display 只写在 [open] 上，否则关着的 dialog 会以普通盒子混进页面流） */
+#dlg-api-stats[open] { display: flex; flex-direction: column; height: min(88vh, 880px); }
+#dlg-api-stats .as-tabs { flex: none; }
+#dlg-api-stats .body { flex: 1; min-height: 0; max-height: none; }
+#api-stats-body { scrollbar-width: none; transition: opacity .15s; }
+#api-stats-body.as-loading { opacity: .45; pointer-events: none; }
+/* 接口管理悬浮框：复用访客详情悬浮框样式 */
+#api-pop .cp-title { display: flex; align-items: center; gap: 6px; }
+#api-pop .as-state {
+  margin-left: auto; font-size: 10px; font-weight: 600; padding: 1px 8px;
+  border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim);
+}
+#api-pop .as-state.on { color: var(--green); border-color: rgba(46, 204, 113, .5); }
+#api-pop .as-state.off { color: var(--red); border-color: rgba(231, 76, 60, .5); }
+#api-pop .as-toggle { width: 100%; margin-top: 8px; padding: 7px 10px; font-size: 12.5px; }
+#api-pop .as-toggle.danger { color: var(--red); border-color: rgba(231, 76, 60, .55); }
+#api-pop .as-toggle.ok { color: var(--green); border-color: rgba(46, 204, 113, .55); }
+#api-pop .as-tip { margin: 6px 0 0; font-size: 10.5px; color: var(--text-dim); }
+.as-table tbody tr.as-clickable { cursor: pointer; }
+.as-table tbody tr.as-clickable:hover { background: var(--panel-2); }
+.as-table tbody tr.as-sel { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--accent); }
+.as-disabled-badge {
+  flex: none; font-size: 9.5px; font-weight: 600; padding: 0 6px;
+  border-radius: 999px; color: var(--red); border: 1px solid rgba(231, 76, 60, .5);
+}
+#api-stats-body.as-loading { opacity: .45; pointer-events: none; }
+#api-stats-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.as-tabs { display: flex; gap: 6px; padding: 10px 16px 0; }
+.as-tabs button { border-radius: 999px; padding: 4px 14px; font-size: 12.5px; }
+.as-tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.method-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; min-width: 42px; padding: 0 6px; border-radius: 5px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.7;
+  letter-spacing: .3px;
+}
+.method-badge.m-get { color: #1e9e56; background: rgba(46, 204, 113, .14); }
+.method-badge.m-post { color: #c98a00; background: rgba(240, 180, 41, .16); }
+.method-badge.m-put { color: #7a4fd0; background: rgba(177, 140, 255, .16); }
+.method-badge.m-del { color: #d44a3a; background: rgba(231, 76, 60, .15); }
+.as-table-wrap {
+  max-height: 300px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 9px;
+}
+.as-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.as-table th, .as-table td {
+  padding: 6px 9px; border-bottom: 1px solid var(--border);
+  text-align: left; white-space: nowrap;
+}
+.as-table th {
+  position: sticky; top: 0; background: var(--panel);
+  color: var(--text-dim); font-weight: 600; z-index: 1;
+}
+.as-table tbody tr:hover { background: var(--panel-2); }
+.as-table .as-route { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 330px; }
+.as-table .as-route span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px;
+}
+.as-table .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.as-table .num b { font-weight: 700; }
+.as-table .num.has-err { color: var(--red); font-weight: 600; }
+.as-table .lt-cell { color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+.vc-bar.uv.err { background: var(--red); opacity: .8; }
+.as-route-inline {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px;
+}
+.as-status {
+  flex: none; font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+  padding: 0 6px; border-radius: 5px; line-height: 1.7;
+}
+.as-status.ok { color: var(--green); background: rgba(46, 204, 113, .13); }
+.as-status.bad { color: var(--red); background: rgba(231, 76, 60, .14); }
+.vs-recent .lv { flex: none; font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+.vs-recent .lr {
+  flex: 1; min-width: 0; color: var(--text-dim); font-size: 11px; text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vs-detail {
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text-dim);
+  border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer;
+}
+.vs-detail:hover { color: var(--accent); border-color: var(--accent); }
+.bd-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+
+/* 访客详情弹窗 */
+#dlg-visit-detail { width: min(1080px, 96vw); }
+#vd-body { padding: 0; max-height: calc(92vh - 250px); scrollbar-width: none; }
+#vd-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.vd-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 20px; border-bottom: 1px solid var(--border); }
+.vd-toolbar input { flex: 1; min-width: 180px; }
+.vd-searchbox {
+  flex: 1; min-width: 180px; box-sizing: border-box; height: 32px;
+  padding: 6px 10px; outline: none; line-height: 18px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 12.5px; line-height: 18px; white-space: nowrap; overflow: hidden;
+}
+.vd-searchbox:focus { border-color: var(--accent); }
+.vd-searchbox:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
+.vd-range-cdd { width: auto; flex: none; }
+.vd-range-cdd .cdd-btn { min-width: 108px; padding: 6px 10px; font-size: 11.5px; }
+.vd-tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 20px 0; }
+.vd-tabs button { border-radius: 999px; padding: 4px 12px; font-size: 12px; }
+.vd-tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.vd-modes { display: flex; gap: 4px; margin-left: auto; }
+.vd-modes button { border-radius: 6px; padding: 4px 10px; font-size: 11.5px; }
+.vd-modes button.active { background: var(--green); border-color: var(--green); color: #fff; }
+.vd-summary { font-size: 11.5px; color: var(--text-dim); padding: 8px 20px 2px; }
+.vd-chart-wrap { padding: 0 20px 10px; }
+.vd-chart-wrap .vc-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.vd-empty { text-align: center; color: var(--text-dim); font-size: 12px; padding: 26px 0; }
+.vd-pie-row { display: flex; align-items: center; gap: 24px; padding: 6px 0 10px; }
+.vd-pie { width: 170px; height: 170px; flex: none; border-radius: 50%; position: relative; }
+.vd-pie::after { content: ""; position: absolute; inset: 34px; border-radius: 50%; background: var(--panel); }
+.vd-legend { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 14px; }
+.vd-legend div { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
+.vd-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.vd-legend span { flex: 1; min-width: 0; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-legend b { font-size: 11px; font-variant-numeric: tabular-nums; }
+.vd-line-svg { width: 100%; height: 190px; display: block; }
+.vd-line-svg text { fill: var(--text-dim); font-size: 10px; }
+.vd-table-wrap { padding: 0 20px 14px; max-height: 300px; overflow: auto; }
+.vd-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.vd-table th, .vd-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.vd-table th { position: sticky; top: 0; background: var(--panel); color: var(--text-dim); font-weight: 600; z-index: 1; }
+.vd-table tbody tr:hover { background: var(--panel-2); cursor: pointer; }
+.vd-table .vd-sub td { background: var(--panel-2); white-space: normal; color: var(--text-dim); cursor: default; }
+.vd-ip { font-family: var(--mono); color: var(--accent); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.grid2 label { margin: 0 0 4px; }
+.grid2 .full { grid-column: 1 / -1; }
+dialog .head { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+dialog .head h2 { margin: 0; font-size: 16px; flex: 1; }
+dialog .body { padding: 4px 20px 20px; overflow-y: auto; max-height: calc(92vh - 130px); }
+dialog .foot { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--border); }
+
+/* 分步编辑 Steps */
+.steps {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+}
+.steps .step {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-dim); cursor: pointer; user-select: none;
+}
+.steps .step .dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text-dim);
+  transition: background .18s, color .18s, box-shadow .18s, border-color .18s;
+}
+.steps .step.active { color: var(--text); }
+.steps .step.active .dot {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 0 0 4px rgba(76, 141, 255, .18);
+}
+.steps .step.done { color: var(--green); }
+.steps .step.done .dot {
+  background: rgba(46, 204, 113, .16); border-color: var(--green); color: var(--green);
+}
+.step-line { flex: 1; height: 2px; border-radius: 2px; background: var(--border); }
+.step-line.done { background: linear-gradient(90deg, var(--green), var(--accent)); }
+.step-panel { display: flex; flex-direction: column; gap: 10px; }
+.step-panel[hidden] { display: none !important; }
+#dlg-editor .body { max-height: calc(92vh - 220px); }
+.row { display: flex; gap: 12px; }
+.row > div { flex: 1; }
+.inline-note { color: var(--text-dim); font-size: 12px; }
+.code-area {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+  min-height: 320px; resize: vertical; white-space: pre; overflow: auto; tab-size: 4;
+}
+.small-area { font-family: var(--mono); font-size: 12px; min-height: 64px; resize: vertical; white-space: pre; }
+.test-result { position: relative; margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 100px 10px 14px; display: none; }
+.test-result.ok { border-color: var(--green); }
+.test-result.fail { border-color: var(--red); }
+.test-result pre {
+  margin: 8px 0 0; padding: 10px; background: var(--bg); border-radius: 6px;
+  font-family: var(--mono); font-size: 12px; max-height: 220px; overflow: auto; white-space: pre-wrap;
+}
+.preview-btn {
+  position: absolute; right: 10px; top: 8px;
+  font-size: 12px; padding: 3px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text-dim);
+}
+.preview-btn:hover { border-color: var(--accent); color: var(--text); }
+.preview-pop { position: fixed; z-index: 1500; width: 330px; pointer-events: none; }
+.pv-card {
+  background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--green);
+  border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+}
+.pv-card.fail { border-left-color: var(--red); }
+.pv-top { display: flex; align-items: center; gap: 8px; }
+.pv-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: none; }
+.pv-dot.fail { background: var(--red); }
+.pv-name {
+  flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pv-badge {
+  flex: none; font-size: 11px; padding: 1px 9px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text-dim);
+}
+.pv-badge.yes { color: var(--green); border-color: rgba(46, 204, 113, .55); background: rgba(46, 204, 113, .14); }
+.pv-badge.no { color: var(--red); border-color: rgba(231, 76, 60, .5); background: rgba(231, 76, 60, .12); }
+.pv-msg { font-size: 13px; line-height: 1.5; color: var(--text); word-break: break-word; }
+.pv-spec {
+  font-size: 12px; line-height: 1.45; color: var(--text-dim);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px;
+}
+.pv-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.pv-stat {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px; padding: 4px 9px;
+}
+.pv-stat .k { font-size: 10px; color: var(--text-dim); }
+.pv-stat b { font-size: 12.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--text-dim); }
+table.runs { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.runs th, table.runs td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+table.runs th { color: var(--text-dim); font-weight: 500; font-size: 12px; position: sticky; top: 0; background: var(--panel); z-index: 1; }
+#dlg-runs .body { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 12px; }
+#runs-fixed { flex: none; }
+#runs-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+table.runs tr.detail-row td { background: var(--bg); }
+table.runs pre { margin: 0; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; max-height: 260px; overflow: auto; }
+.run-ok { color: var(--green); } .run-fail { color: var(--red); }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var(--panel-2); color: var(--text-dim); }
+.muted { color: var(--text-dim); }
+a { color: var(--accent); }
+.toast {
+  position: fixed; right: 20px; bottom: 20px; z-index: 99;
+  background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px 16px; max-width: 420px; font-size: 13px;
+  opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: none; }
+.toast.error { border-left-color: var(--red); }
+
+/* 管理员登录门：未登录时全屏覆盖 */
+#login-gate {
+  position: fixed; inset: 0; z-index: 60; display: none;
+  align-items: center; justify-content: center; background: var(--bg);
+}
+#login-gate.show { display: flex; }
+.login-card {
+  width: min(380px, 92vw); background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; padding: 28px 26px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+}
+.login-card h2 { margin: 0 0 4px; font-size: 19px; text-align: center; }
+.login-card .sub { text-align: center; color: var(--text-dim); font-size: 12px; margin-bottom: 16px; }
+.login-card .login-err { color: var(--red); font-size: 13px; min-height: 20px; margin: 10px 0 0; text-align: center; }
+.admin-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  background: linear-gradient(135deg, rgba(76, 141, 255, .16), rgba(76, 141, 255, .04));
+  border: 1px solid rgba(76, 141, 255, .45); border-radius: 999px;
+  padding: 2.5px 11px; color: var(--text-dim);
+}
+.admin-chip b { color: var(--text); font-weight: 600; }
+.warnbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: color-mix(in srgb, var(--yellow) 12%, transparent);
+  border: 1px solid var(--yellow); border-radius: 8px;
+  padding: 8px 14px; margin: 0 0 14px; font-size: 13px;
+}
+.warnbar .spacer { flex: 1; }
+
+/* 分组展示与筛选 */
+.group-head {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+  margin: 18px 0 4px; font-size: 14px; font-weight: 600; color: var(--text);
+}
+.group-head:first-child { margin-top: 0; }
+.group-head .arrow { transition: transform .15s; font-size: 11px; color: var(--text-dim); }
+.group-head.collapsed .arrow { transform: rotate(-90deg); }
+.group-head .cnt { font-weight: 400; font-size: 12px; color: var(--text-dim); }
+.badge.yellow { color: var(--yellow); border-color: var(--yellow); }
+.filterbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.filterbar button {
+  display: inline-flex; align-items: center; gap: 5px;
+  border-radius: 999px; padding: 4px 14px; font-size: 13px; line-height: 1.4;
+  background: var(--panel); color: var(--text-dim);
+}
+.filterbar button:hover { border-color: var(--accent); color: var(--text); }
+/* 分组图标独立成节点：emoji 自带字形基线不稳，flex 垂直居中后再微调上移对齐文字 */
+.filterbar button .t-ic { font-size: 13px; line-height: 1; transform: translateY(-.5px); }
+.filterbar button.active {
+  background: linear-gradient(135deg, var(--accent), #6aa6ff);
+  border-color: var(--accent); color: #fff; font-weight: 600;
+  box-shadow: 0 2px 12px rgba(76, 141, 255, .45), inset 0 0 0 1px rgba(255, 255, 255, .14);
+}
+/* 分组标签拖动排序 */
+.filterbar button[data-gname] { cursor: grab; }
+.filterbar button.dragging { opacity: .45; cursor: grabbing; }
+.filterbar button.drag-over { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* 双击分组标签弹出的重命名悬浮框 */
+#group-pop {
+  position: fixed; z-index: 60; display: none;
+  width: 250px; padding: 12px;
+  background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+}
+#group-pop .gp-title { font-size: 12px; color: var(--text-dim); margin-bottom: 7px; }
+#group-pop input { height: 30px; padding: 0 9px; font-size: 13px; }
+#group-pop .gp-row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+#group-pop .gp-row button { height: 28px; padding: 0 12px; font-size: 12.5px; }
+/* 分组图标：入口按钮（弹窗内）与 emoji 选择网格 */
+.icon-btn-round {
+  width: 30px; height: 30px; flex: none; padding: 0; font-size: 15px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 7px;
+}
+.icon-btn-round:hover { border-color: var(--accent); }
+#emoji-pop {
+  position: fixed; z-index: 70; display: none;
+  width: 248px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+}
+#emoji-pop .em-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+#emoji-pop button {
+  width: 100%; height: 30px; padding: 0; font-size: 16px; line-height: 1;
+  background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+}
+#emoji-pop button:hover { background: var(--panel-2); border-color: var(--border); }
+#emoji-pop button.cur { border-color: var(--accent); background: rgba(76, 141, 255, .12); }
+#emoji-pop .em-clear {
+  grid-column: 1 / -1; height: 26px; margin-top: 4px; font-size: 11.5px;
+  color: var(--text-dim); background: var(--panel-2); border: 1px solid var(--border);
+}
+#emoji-pop .em-clear:hover { color: var(--text); }
+.filterbar button.active b { color: #fff; opacity: .9; font-weight: 500; }
+.filterbar button.active:hover { color: #fff; }
+.filterbar button.add-group {
+  border-style: dashed; color: var(--text-dim); padding: 3px 10px; font-weight: 600;
+}
+.filterbar button.add-group:hover { color: var(--accent); border-color: var(--accent); }
+
+/* 编辑弹窗里的自定义下拉框 */
+.native-hidden { display: none !important; }
+.cdd { position: relative; }
+.cdd-btn, .combo-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  box-sizing: border-box; height: 32px; line-height: 18px;
+  width: 100%; padding: 6px 10px; font-size: 13px; cursor: pointer;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.cdd-btn:hover, .combo-btn:hover { border-color: var(--accent); }
+.cdd-btn .caret, .combo-btn .caret { color: var(--text-dim); font-size: 10px; flex: none; }
+.cdd-btn .cdd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo { display: flex; gap: 6px; }
+.combo input { flex: 1; min-width: 0; }
+.combo-btn { width: auto; flex: none; padding: 6px 10px; }
+.cdd-menu {
+  position: fixed; left: 0; top: 0; z-index: 1200;
+  min-width: 200px; max-width: 420px; max-height: 320px; overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .5);
+}
+.cdd-menu[hidden] { display: none !important; }
+.cdd-menu button {
+  border: none; background: transparent; color: var(--text-dim);
+  text-align: left; padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; line-height: 1.45; white-space: normal;
+}
+.cdd-menu button:hover { background: var(--panel-2); color: var(--text); }
+.cdd-menu button.active { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+.cdd-menu button.active::after { content: "✓"; float: right; margin-left: 10px; }
+
+/* 执行历史趋势图（纯 SVG） */
+.trend-box { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
+.trend-box .trend-head { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+.trend-box .trend-head b { color: var(--text); font-weight: 600; }
+.trend-legend { display: flex; gap: 12px; font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+.trend-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="logo">📡</span><span id="site-name">网页监控平台</span></h1>
+  <div class="divider"></div>
+  <div class="chips" id="chips"></div>
+  <div class="spacer"></div>
+  <span class="admin-chip" id="admin-chip" hidden>👤 <b id="admin-user"></b></span>
+  <button id="theme-btn" onclick="toggleTheme()" title="切换深浅色主题">☀️ 浅色</button>
+  <button onclick="window.open('/', '_blank')" title="公开只读看板（无需登录）">👁 公开看板</button>
+  <span id="admin-actions" hidden>
+    <button onclick="openSiteSettings()">🌐 网站设置</button>
+    <button onclick="openVisitStats()">📈 访问统计</button>
+    <button onclick="openClickStats()">🔗 跳转统计</button>
+    <button onclick="openApiStats()">🔌 接口统计</button>
+    <button onclick="openSettings()">⚙ 通知设置</button>
+    <button onclick="openPasswd()">🔑 修改密码</button>
+    <button onclick="doLogout()">退出</button>
+    <button class="primary" onclick="openEditor(null)">＋ 新建监控</button>
+  </span>
+</header>
+
+<main>
+  <div class="warnbar" id="default-warn" hidden>
+    <span>⚠ 当前还在使用默认密码 <b>admin123</b>，请尽快修改。</span>
+    <span class="spacer"></span>
+    <button onclick="openPasswd()">立即修改</button>
+  </div>
+  <div class="filterbar" id="filterbar" hidden></div>
+  <div id="list"></div>
+  <div class="empty" id="empty" hidden>
+    还没有监控项。点击右上角「新建监控」，选一个模板（HTTP 探测 / 华为云库存 / 端口探测）即可开始。
+  </div>
+</main>
+
+<!-- 编辑 / 新建监控（Steps 分步） -->
+<dialog id="dlg-editor">
+  <div class="head"><h2 id="editor-title">新建监控</h2></div>
+
+  <div class="steps" id="editor-steps">
+    <div class="step active" data-step="1" onclick="goStep(1)">
+      <span class="dot">1</span><span class="txt">基本信息</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" data-step="2" onclick="goStep(2)">
+      <span class="dot">2</span><span class="txt">执行设置</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" data-step="3" onclick="goStep(3)">
+      <span class="dot">3</span><span class="txt">采集脚本</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <section class="step-panel" data-step="1">
+      <label>套用模板（会覆盖代码与参数）</label>
+      <div class="cdd" id="cdd-template">
+        <button type="button" class="cdd-btn" onclick="toggleCdd('cdd-template')">
+          <span class="cdd-label">— 不套用 —</span><span class="caret">▾</span>
+        </button>
+      </div>
+      <select id="f-template" class="native-hidden" onchange="applyTemplate()"><option value="">— 不套用 —</option></select>
+      <div class="row">
+        <div>
+          <label>监控名称 *</label>
+          <input id="f-name" placeholder="如：华为云 2核2G 库存">
+        </div>
+        <div>
+          <label>分组（可选，便于筛选管理）</label>
+          <div class="combo">
+            <input id="f-group" placeholder="如：云服务器 / 抢购 / 内网服务">
+            <button type="button" class="combo-btn" onclick="toggleGroupMenu(event)" title="选择已有分组">▾</button>
+          </div>
+        </div>
+        <div style="max-width:170px">
+          <label>推送策略</label>
+          <div class="cdd" id="cdd-notify">
+            <button type="button" class="cdd-btn" onclick="toggleCdd('cdd-notify')">
+              <span class="cdd-label">状态变化时推送</span><span class="caret">▾</span>
+            </button>
+          </div>
+          <select id="f-notify" class="native-hidden">
+            <option value="change">状态变化时推送</option>
+            <option value="in_stock">有库存时推送（无货不推）</option>
+            <option value="fail">仅失败时推送</option>
+            <option value="never">不推送</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>厂商名（可选）</label>
+          <input id="f-vendor" maxlength="30" placeholder="如：腾讯云 / 阿里云">
+        </div>
+        <div>
+          <label>地区（可选）</label>
+          <input id="f-region" placeholder="如：上海 / 北京 / 广州">
+        </div>
+        <div>
+          <label>价格类型</label>
+          <div class="cdd" id="cdd-price-type">
+            <button type="button" class="cdd-btn" onclick="toggleCdd('cdd-price-type')">
+              <span class="cdd-label">未设置</span><span class="caret">▾</span>
+            </button>
+          </div>
+          <select id="f-price-type" class="native-hidden">
+            <option value="">未设置</option>
+            <option value="new_user">新用户首年价</option>
+            <option value="renew">老用户续费价</option>
+            <option value="normal">常规价格</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>限购数量（个，0 = 不限）</label>
+          <input id="f-limit" type="number" min="0" max="9999" step="1" value="0">
+        </div>
+        <div>
+          <label>是否需要实名</label>
+          <div class="cdd" id="cdd-realname">
+            <button type="button" class="cdd-btn" onclick="toggleCdd('cdd-realname')">
+              <span class="cdd-label">未设置</span><span class="caret">▾</span>
+            </button>
+          </div>
+          <select id="f-realname" class="native-hidden">
+            <option value="">未设置</option>
+            <option value="yes">需要实名认证</option>
+            <option value="no">无需实名</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="step-panel" data-step="2" hidden>
+      <div class="row">
+        <div>
+          <label>执行间隔（秒，最小 3）</label>
+          <input id="f-interval" type="number" min="3" step="1" value="30">
+        </div>
+        <div>
+          <label>单次超时（秒）</label>
+          <input id="f-timeout" type="number" min="1" step="1" value="30">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>失败重试次数（0 = 不重试，仅定时任务生效）</label>
+          <input id="f-retry" type="number" min="0" max="10" step="1" value="0">
+        </div>
+        <div>
+          <label>重试间隔（秒）</label>
+          <input id="f-retry-gap" type="number" min="0" step="1" value="5">
+        </div>
+        <div>
+          <label>慢执行阈值（毫秒，0 = 不检测）</label>
+          <input id="f-slow" type="number" min="0" step="100" value="0" placeholder="如 5000">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>监控时段（北京时间，HH:MM-HH:MM，逗号分隔；留空 = 全天监控）</label>
+          <input id="f-windows" type="text" placeholder="如 10:00-12:00, 15:00-17:00">
+        </div>
+      </div>
+    </section>
+
+    <section class="step-panel" data-step="3" hidden>
+      <label>参数 PARAMS（JSON 对象，代码里可直接使用 PARAMS 变量）</label>
+      <textarea id="f-params" class="small-area" spellcheck="false"></textarea>
+      <label>监控代码（Python，用 emit(ok, message, data) 上报结果）</label>
+      <textarea id="f-code" class="code-area" spellcheck="false" wrap="off"></textarea>
+      <div class="test-result" id="test-box">
+        <button type="button" class="preview-btn" id="test-preview-btn" hidden
+                onmouseenter="showTestPreview()" onmouseleave="hideTestPreview()">查看卡片</button>
+        <span id="test-msg"></span>
+        <span class="tag" id="test-cost"></span>
+        <pre id="test-output"></pre>
+        <div class="preview-pop" id="test-preview" hidden></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="foot">
+    <span class="inline-note spacer" style="align-self:center" id="editor-id-note"></span>
+    <button id="btn-prev" onclick="goStep(editorStep - 1)" hidden>← 上一步</button>
+    <button id="btn-test" onclick="testRun()" hidden>▶ 测试运行</button>
+    <button onclick="closeDialog('dlg-editor')">取消</button>
+    <button id="btn-next" class="primary" onclick="goStep(editorStep + 1)">下一步 →</button>
+    <button id="btn-save" class="primary" onclick="saveEditor()" hidden>保存</button>
+  </div>
+  <div class="cdd-menu" id="cdd-menu" hidden></div>
+</dialog>
+
+<!-- 执行历史 -->
+<dialog id="dlg-runs">
+  <div class="head"><h2 id="runs-title">执行历史</h2></div>
+  <div class="body" id="runs-body"></div>
+  <div class="foot">
+    <button class="spacer" onclick="loadRuns(currentRunsId)">🔄 刷新</button>
+    <button onclick="closeDialog('dlg-runs')">关闭</button>
+  </div>
+</dialog>
+
+<!-- 通用确认弹窗（代替浏览器原生 confirm） -->
+<dialog id="dlg-confirm">
+  <div class="head"><h2>确认操作</h2></div>
+  <div class="body"><p id="confirm-msg" style="margin:6px 0 0"></p></div>
+  <div class="foot">
+    <button onclick="resolveConfirm(false)">取消</button>
+    <button class="primary" id="confirm-ok" onclick="resolveConfirm(true)">确定</button>
+  </div>
+</dialog>
+
+<!-- 新建分组 -->
+<dialog id="dlg-group">
+  <div class="head"><h2>新建分组</h2></div>
+  <div class="body">
+    <label>分组名称</label>
+    <input id="new-group-name" placeholder="如：云服务器 / 抢购 / 内网服务"
+           onkeydown="if (event.key === 'Enter') createGroup()">
+    <label style="margin-top:12px">分组图标（可选）</label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button type="button" class="icon-btn-round" id="new-group-icon-btn" title="点击选择分组图标" onclick="pickNewGroupIcon(this)">📁</button>
+      <span class="muted" style="font-size:12px">不选择时默认使用 📁</span>
+    </div>
+    <p class="muted" style="margin:8px 0 0">分组会单独保存，暂无监控项也会保留；之后新建或编辑监控时选择该分组即可。</p>
+  </div>
+  <div class="foot">
+    <button onclick="closeDialog('dlg-group')">取消</button>
+    <button class="primary" onclick="createGroup()">创建分组</button>
+  </div>
+</dialog>
+
+<!-- 通知设置（可视化 Tab 编辑） -->
+<dialog id="dlg-settings">
+  <div class="head"><h2>通知设置</h2></div>
+  <div class="body">
+    <div class="tabbar" id="set-tabs"></div>
+    <div id="set-body"></div>
+  </div>
+  <div class="foot">
+    <span class="inline-note spacer" style="align-self:center">改动需点「保存」才生效</span>
+    <button onclick="closeDialog('dlg-settings')">关闭</button>
+    <button class="primary" onclick="saveSettings()">保存</button>
+  </div>
+</dialog>
+
+<!-- 网站设置 -->
+<dialog id="dlg-site">
+  <div class="head"><h2>🌐 网站设置</h2></div>
+  <div class="body">
+    <label>网站名称（后台标题）</label>
+    <input id="site-name-input" maxlength="60" placeholder="网页监控平台">
+    <label>公开看板标题（公开首页显示的标题）</label>
+    <input id="site-stock-title" maxlength="60" placeholder="服务器存量看板">
+    <label>看板页脚文字（可选）</label>
+    <input id="site-footer" maxlength="60" placeholder="如：数据仅供参考，折扣信息以官网为准">
+    <p class="inline-note" style="margin-top:10px">保存后立即生效，公开看板会同步显示新标题与页脚。</p>
+  </div>
+  <div class="foot">
+    <button onclick="closeDialog('dlg-site')">取消</button>
+    <button class="primary" onclick="saveSiteSettings()">保存</button>
+  </div>
+</dialog>
+
+<!-- 访问统计 -->
+<dialog id="dlg-visits">
+  <div class="head"><h2>📈 访问统计（公开看板 /）</h2></div>
+  <div class="body" id="visit-body"></div>
+  <div class="foot">
+    <span class="inline-note spacer" style="align-self:center">只统计页面打开次数；记录 IP、设备、浏览器与来源，仅管理员可见；点击记录行弹出访客详情悬浮框</span>
+    <button onclick="closeDialog('dlg-visits')">关闭</button>
+  </div>
+  <div id="visit-pop" hidden></div>
+</dialog>
+
+<!-- 访客明细与可视化 -->
+<dialog id="dlg-visit-detail">
+  <div class="head"><h2>🔍 访客明细与可视化</h2></div>
+  <div class="vd-toolbar">
+    <div id="vd-search" class="vd-searchbox" contenteditable="true" role="textbox" spellcheck="false"
+         data-placeholder="搜索 IP / 设备 / 浏览器 / 系统 / 来源 / UA"
+         oninput="onVisitSearch()" onkeydown="if(event.key==='Enter')event.preventDefault()"></div>
+    <select id="vd-range" class="native-hidden" onchange="renderVisitDetail()">
+      <option value="7">近 7 天</option>
+      <option value="30" selected>近 30 天</option>
+      <option value="0">全部</option>
+    </select>
+    <div class="cdd vd-range-cdd" id="vd-range-cdd">
+      <button type="button" class="cdd-btn" onclick="toggleSelectCdd('vd-range', 'vd-range-cdd', 'cdd-menu-detail')">
+        <span class="cdd-label">近 30 天</span><span class="caret">▾</span>
+      </button>
+    </div>
+    <div class="vd-modes">
+      <button data-mode="bar" class="active" onclick="setVisitMode('bar')">柱状</button>
+      <button data-mode="line" onclick="setVisitMode('line')">折线</button>
+      <button data-mode="pie" onclick="setVisitMode('pie')">占比</button>
+    </div>
+  </div>
+  <div class="vd-tabs" id="vd-tabs">
+    <button data-tab="list" class="active" onclick="setVisitTab('list')">全部记录</button>
+    <button data-tab="trend" onclick="setVisitTab('trend')">访问趋势</button>
+    <button data-tab="device" onclick="setVisitTab('device')">设备</button>
+    <button data-tab="browser" onclick="setVisitTab('browser')">浏览器</button>
+    <button data-tab="os" onclick="setVisitTab('os')">系统</button>
+  </div>
+  <div class="vd-summary" id="vd-summary">加载中…</div>
+  <div class="body" id="vd-body">
+    <div class="vd-chart-wrap" id="vd-chart"></div>
+    <div class="vd-table-wrap" id="vd-table"></div>
+  </div>
+  <div class="cdd-menu" id="cdd-menu-detail" hidden></div>
+  <div class="foot">
+    <span class="inline-note spacer" style="align-self:center">点击表格行展开完整信息</span>
+    <button onclick="closeDialog('dlg-visit-detail')">关闭</button>
+  </div>
+</dialog>
+
+<!-- 跳转点击统计 -->
+<dialog id="dlg-clicks">
+  <div class="head"><h2>🔗 跳转统计（「前往站点」点击）</h2></div>
+  <div class="body" id="click-body"></div>
+  <div class="foot">
+    <span class="inline-note spacer" style="align-self:center">统计公开看板「前往站点」的跳转点击：目标地址、点击者 IP / 设备，仅管理员可见；点击记录行弹出访客详情悬浮框</span>
+    <button onclick="closeDialog('dlg-clicks')">关闭</button>
+  </div>
+  <div id="click-pop" hidden></div>
+</dialog>
+
+<!-- 接口调用统计 -->
+<dialog id="dlg-api-stats">
+  <div class="head"><h2>🔌 接口统计（/api/* 调用）</h2></div>
+  <div class="as-tabs">
+    <button data-auth="all" class="active" onclick="switchApiAuth('all')">全部</button>
+    <button data-auth="public" onclick="switchApiAuth('public')">🌐 公共接口</button>
+    <button data-auth="admin" onclick="switchApiAuth('admin')">🔐 需登录</button>
+  </div>
+  <div class="body" id="api-stats-body"></div>
+  <div class="foot">
+    <span class="inline-note spacer" style="align-self:center">统计每个接口的调用次数、错误与耗时；记录保留 30 天，仅管理员可见；点击接口行可管理启停</span>
+    <button onclick="closeDialog('dlg-api-stats')">关闭</button>
+  </div>
+  <div id="api-pop" hidden></div>
+</dialog>
+
+<!-- 管理员登录门 -->
+<div id="login-gate">
+  <form class="login-card" onsubmit="return doLogin(event)">
+    <h2>🔐 管理员登录</h2>
+    <div class="sub">配置采集服务需要登录；公开看板 / 无需登录</div>
+    <label>用户名</label>
+    <input id="l-user" autocomplete="off" placeholder="admin">
+    <label>密码</label>
+    <input id="l-pass" type="password" autocomplete="off" placeholder="密码">
+    <div class="login-err" id="l-err"></div>
+    <button class="primary" id="l-btn" type="submit" style="width:100%;padding:9px">登 录</button>
+  </form>
+</div>
+
+<!-- 修改管理员密码 -->
+<dialog id="dlg-passwd">
+  <div class="head"><h2>修改管理员密码</h2></div>
+  <div class="body">
+    <label>原密码</label>
+    <input id="p-old" type="password" autocomplete="off">
+    <label>新密码（至少 6 位）</label>
+    <input id="p-new" type="password" autocomplete="off">
+    <label>确认新密码</label>
+    <input id="p-new2" type="password" autocomplete="off">
+    <p class="inline-note" id="p-err" style="color:var(--red);min-height:18px;margin-top:10px"></p>
+  </div>
+  <div class="foot">
+    <button onclick="closeDialog('dlg-passwd')">取消</button>
+    <button class="primary" onclick="savePassword()">保存</button>
+  </div>
+</dialog>
+
+<!-- 分组重命名悬浮框 -->
+<div id="group-pop" role="dialog" aria-label="重命名分组">
+  <div class="gp-title">重命名分组</div>
+  <div style="display:flex;gap:6px">
+    <input id="gp-input" maxlength="30" placeholder="输入新的分组名称" autocomplete="off">
+    <button type="button" class="icon-btn-round" id="gp-icon-btn" title="修改分组图标" onclick="pickGroupIcon(this)">📁</button>
+  </div>
+  <div class="gp-row">
+    <button onclick="closeGroupPop()">取消</button>
+    <button class="primary" onclick="saveGroupRename()">保存</button>
+  </div>
+</div>
+
+<!-- 分组 emoji 选择器（供新建分组 / 重命名弹窗使用） -->
+<div id="emoji-pop"></div>
+
+<!-- 删除二次确认悬浮框 -->
+<div id="del-pop" role="dialog" aria-label="确认删除">
+  <div class="txt">确定删除「<em id="del-pop-name"></em>」？<br>执行历史会一并删除，且不可恢复。</div>
+  <div class="row">
+    <button onclick="closeDeletePop()">取消</button>
+    <button class="del" onclick="confirmDelete()">确认删除</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* 弹窗/浮层打开时锁定背景滚动（支持多层弹窗与 Esc 关闭） */
+function syncModalScrollLock() {
+  const dialogOpen = document.querySelectorAll("dialog[open]").length > 0;
+  const pop = document.getElementById("del-pop");
+  const lock = dialogOpen || !!(pop && pop.style.display === "block");
+  document.documentElement.classList.toggle("modal-open", lock);
+  document.body.classList.toggle("modal-open", lock);
+}
+(function () {
+  const show = HTMLDialogElement.prototype.showModal;
+  const close = HTMLDialogElement.prototype.close;
+  HTMLDialogElement.prototype.showModal = function () { show.call(this); syncModalScrollLock(); };
+  HTMLDialogElement.prototype.close = function (...args) { close.apply(this, args); syncModalScrollLock(); };
+  document.addEventListener("close", syncModalScrollLock, true);
+})();
+
+/* 禁用浏览器账号/密码自动联想：普通输入框用 new-password（Chrome 会忽略 off），
+   登录/改密框用 off，并统一打上密码管理器忽略标记 */
+const AUTH_INPUT_IDS = new Set(["l-user", "l-pass", "p-old", "p-new", "p-new2"]);
+function isAuthInput(el) {
+  return AUTH_INPUT_IDS.has(el.id) || !!el.closest("#login-gate") || !!el.closest("#dlg-passwd");
+}
+function disableAutofill(el) {
+  if (!el || !el.matches || !el.matches("input, textarea")) return;
+  el.setAttribute("autocomplete", isAuthInput(el) ? "off" : "new-password");
+  el.setAttribute("data-form-type", "other");
+  el.setAttribute("data-lpignore", "true");
+  el.setAttribute("data-1p-ignore", "true");
+  el.setAttribute("spellcheck", "false");
+}
+document.querySelectorAll("input, textarea").forEach(disableAutofill);
+document.addEventListener("focusin", e => disableAutofill(e.target));
+let monitors = [];
+let templates = [];
+let dragMid = null;          // 正在拖动的监控项
+let draggingCards = false;   // 拖动期间暂停列表重绘
+let dragGroupName = null;    // 正在拖动的分组标签
+let draggingGroups = false;  // 拖动分组期间暂停筛选栏重绘
+let extraGroups = [];   // 单独创建的空分组
+let groupIcons = {};    // 分组图标映射 {分组名: emoji}，未设置的分组回落为默认图标
+let allTabIcon = "";    // 「全部」标签图标（空 = 默认 🗂）
+const DEFAULT_GROUP_ICON = "📁";
+const ALL_TAB_DEFAULT_ICON = "🗂";
+const iconOf = g => groupIcons[g] || DEFAULT_GROUP_ICON;
+const allIconOf = () => allTabIcon || ALL_TAB_DEFAULT_ICON;
+let currentRunsId = null;
+let editingId = null;   // null=新建
+
+/* ---------------- 工具 ---------------- */
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+/* 监控时段：后端存 JSON，编辑框里用 "10:00-12:00, 15:00-17:00" 展示 */
+function fmtWindows(raw) {
+  if (!raw) return "";
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(w => `${w.start}-${w.end}`).join(", ") : "";
+  } catch { return ""; }
+}
+function windowsPayload() {
+  const text = $("f-windows").value.trim();
+  if (!text) return "";
+  const windows = text.split(/[,，;；\s]+/).filter(Boolean).map(part => {
+    const [start, end] = part.split(/[-~～]|至/).map(s => s.trim());
+    return { start, end };
+  });
+  return JSON.stringify(windows);
+}
+/* 价格类型：新用户首年 / 老用户续费 / 常规价 */
+function priceTypeLabel(v) {
+  return { new_user: "新用户首年价", renew: "老用户续费价", normal: "常规价" }[v] || "";
+}
+function realnameLabel(v) {
+  return v === "yes" ? "需实名" : v === "no" ? "无需实名" : "";
+}
+function toast(msg, isError = false) {
+  const t = $("toast");
+  // 模态 <dialog> 在浏览器顶层渲染，z-index 再高也会被盖住；有弹窗打开时把 toast 挪进弹窗里
+  const dlg = document.querySelector("dialog[open]");
+  const host = dlg || document.body;
+  if (t.parentElement !== host) host.appendChild(t);
+  t.textContent = msg;
+  t.className = "toast show" + (isError ? " error" : "");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+async function api(url, options) {
+  const resp = await fetch(url, options);
+  const data = await resp.json().catch(() => ({}));
+  if (resp.status === 401 && !url.startsWith("/api/login") && !url.startsWith("/api/me")) {
+    showLogin();   // 会话过期：弹回登录门
+  }
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+  return data;
+}
+function fmtTime(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts * 1000), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const hmss = d.toLocaleTimeString("zh-CN", { hour12: false });
+  return sameDay ? hmss : `${d.getMonth() + 1}/${d.getDate()} ${hmss}`;
+}
+function fmtIn(ts) {
+  if (!ts) return "—";
+  const delta = Math.round(ts - Date.now() / 1000);
+  if (delta <= 0) return "即将执行";
+  if (delta < 60) return `${delta} 秒后`;
+  if (delta < 3600) return `${Math.floor(delta / 60)} 分 ${delta % 60} 秒后`;
+  return `${Math.floor(delta / 3600)} 小时后`;
+}
+
+/* ---------------- 管理员登录 / 会话 ---------------- */
+
+let me = { authenticated: false };   // 当前登录状态
+
+function showLogin() {
+  me = { authenticated: false };
+  $("login-gate").classList.add("show");
+  $("admin-actions").hidden = true;
+  $("admin-chip").hidden = true;
+  $("default-warn").hidden = true;
+  setTimeout(() => $("l-pass").focus(), 60);
+}
+
+function applyAuthState() {
+  $("login-gate").classList.remove("show");
+  $("l-pass").value = "";
+  $("l-err").textContent = "";
+  $("admin-actions").hidden = false;
+  $("admin-chip").hidden = false;
+  $("admin-user").textContent = me.user?.username || "";
+  $("default-warn").hidden = !me.password_is_default;
+}
+
+async function checkAuth() {
+  try { me = await api("/api/me"); }
+  catch { me = { authenticated: false }; }
+  if (!me.authenticated) { showLogin(); return false; }
+  applyAuthState();
+  return true;
+}
+
+async function doLogin(event) {
+  event?.preventDefault();
+  const username = $("l-user").value.trim();
+  const password = $("l-pass").value;
+  if (!username || !password) { $("l-err").textContent = "请输入用户名和密码"; return false; }
+  $("l-err").textContent = "";
+  $("l-btn").disabled = true;
+  try {
+    me = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    me.authenticated = true;
+    applyAuthState();
+    toast(`欢迎回来，${me.user.username}${me.password_is_default ? "（请尽快修改默认密码）" : ""}`,
+          !!me.password_is_default);
+    loadAll().catch(e => toast("加载失败：" + e.message, true));
+  } catch (e) {
+    $("l-err").textContent = e.message;
+  } finally {
+    $("l-btn").disabled = false;
+  }
+  return false;
+}
+
+async function doLogout() {
+  try { await api("/api/logout", { method: "POST" }); } catch { /* 忽略 */ }
+  toast("已退出登录");
+  showLogin();
+}
+
+function openPasswd() {
+  $("p-old").value = ""; $("p-new").value = ""; $("p-new2").value = "";
+  $("p-err").textContent = "";
+  $("dlg-passwd").showModal();
+}
+
+async function savePassword() {
+  const old_password = $("p-old").value, new_password = $("p-new").value;
+  $("p-err").textContent = "";
+  if (!old_password || !new_password) { $("p-err").textContent = "请填写原密码和新密码"; return; }
+  if (new_password !== $("p-new2").value) { $("p-err").textContent = "两次输入的新密码不一致"; return; }
+  try {
+    await api("/api/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old_password, new_password }),
+    });
+    me.password_is_default = false;
+    $("default-warn").hidden = true;
+    closeDialog("dlg-passwd");
+    toast("密码已修改，下次登录使用新密码");
+  } catch (e) { $("p-err").textContent = e.message; }
+}
+
+// 登录表单回车提交由 <form onsubmit> 原生处理，无需额外 keydown 监听
+
+/* ---------------- 状态判定 ---------------- */
+
+function isStockMonitor(m) {
+  return !!(m && m.last_data && typeof m.last_data.in_stock === "boolean");
+}
+
+function statusOf(m) {
+  if (!m.enabled) return { cls: "paused", text: "已暂停" };
+  if (m.running) return { cls: "pending spin", text: "运行中" };
+  if (m.last_ok === null || m.last_ok === undefined) return { cls: "pending", text: "待首次运行" };
+  if (isStockMonitor(m)) {
+    return m.last_ok ? { cls: "ok", text: "有货" } : { cls: "fail", text: "无货" };
+  }
+  return m.last_ok ? { cls: "ok", text: "正常" } : { cls: "fail", text: "异常" };
+}
+
+/* ---------------- 列表渲染 ---------------- */
+
+let activeGroup = "all";        // 当前筛选的分组："all" / "" (未分组) / 分组名
+let collapsedGroups = new Set(); // 已折叠的分组
+
+function groupsOf() {
+  const set = new Set();
+  for (const m of monitors) set.add(m.group_name || "");
+  for (const g of extraGroups) if (g) set.add(g);
+  // extraGroups 由 /api/groups 返回，已是后台拖动保存的顺序
+  const rank = new Map(extraGroups.map((g, i) => [g, i]));
+  return [...set].sort((a, b) => {
+    const ra = rank.has(a) ? rank.get(a) : 1e9;
+    const rb = rank.has(b) ? rank.get(b) : 1e9;
+    return ra - rb || (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "zh"));
+  });
+}
+
+function renderFilterBar() {
+  if (draggingGroups) return;   // 拖动分组期间不要重建标签
+  const bar = $("filterbar");
+  const groups = groupsOf();
+  if (!monitors.length && !extraGroups.length) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const btn = (idx, icon, label, n, active, gname = null) =>
+    `<button class="${active ? "active" : ""}" data-idx="${idx}"
+      ${gname !== null ? `draggable="true" data-gname="${esc(gname)}" title="双击重命名，拖动调整分组顺序"` : ""}
+      ${gname === null && idx === -1 ? `title="双击修改图标"` : ""}
+      onclick="switchGroupIdx(${idx})"
+      ${idx >= 0 ? `ondblclick="renameGroup(${idx}, event)"` : `ondblclick="pickAllTabIcon(event)"`}
+    ><span class="t-ic">${icon}</span><span>${esc(label)}</span><b>${n}</b></button>`;
+  bar.innerHTML =
+    btn(-1, allIconOf(), "全部", monitors.length, activeGroup === "all") +
+    groups.map((g, i) => btn(i, g === "" ? DEFAULT_GROUP_ICON : iconOf(g),
+      g === "" ? "未分组" : g,
+      monitors.filter(m => (m.group_name || "") === g).length,
+      activeGroup === g, g)).join("") +
+    `<button class="add-group" title="新建分组" onclick="addGroup()">＋</button>`;
+}
+
+function switchGroupIdx(idx) {
+  activeGroup = idx === -1 ? "all" : groupsOf()[idx] ?? "all";
+  // 只切换选中样式，不重建按钮：否则双击时按钮已被替换，dblclick 不会触发
+  const groups = groupsOf();
+  $("filterbar").querySelectorAll("button[data-idx]").forEach(btn => {
+    const i = Number(btn.dataset.idx);
+    btn.classList.toggle("active", i === -1 ? activeGroup === "all" : groups[i] === activeGroup);
+  });
+  renderList();
+}
+
+/* 双击分组标签原地改名：回车保存，Esc 取消，点别处也会保存 */
+let renamingGroup = null;
+
+function renameGroup(idx, evt) {
+  evt.stopPropagation();
+  const name = groupsOf()[idx];
+  if (!name) { toast("「未分组」不支持重命名", true); return; }
+  renamingGroup = name;
+  const pop = $("group-pop");
+  const input = $("gp-input");
+  input.value = name;
+  $("gp-icon-btn").textContent = iconOf(name);
+  // 先显示再量尺寸，贴着分组标签弹出
+  pop.style.visibility = "hidden";
+  pop.style.display = "block";
+  const btn = evt.currentTarget.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  let left = Math.max(8, Math.min(btn.left, window.innerWidth - box.width - 8));
+  let top = btn.bottom + 8;
+  if (top + box.height > window.innerHeight - 8) {
+    top = Math.max(8, btn.top - box.height - 8);
+  }
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.visibility = "visible";
+  input.focus();
+  input.select();
+}
+
+function closeGroupPop() {
+  renamingGroup = null;
+  $("group-pop").style.display = "none";
+}
+
+async function saveGroupRename() {
+  const name = renamingGroup;
+  if (!name) return;
+  const value = $("gp-input").value.trim();
+  if (!value) { toast("分组名称不能为空", true); return; }
+  if (value === name) { closeGroupPop(); return; }
+  try {
+    try {
+      await api("/api/groups/rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ old: name, new: value }),
+      });
+    } catch (e) {
+      // 旧版服务还没有这个接口：退化为逐个修改该组监控项，避免必须重启
+      if (!/HTTP 40[45]/.test(e.message)) throw e;
+      const ids = monitors.filter(m => (m.group_name || "") === name).map(m => m.id);
+      if (!ids.length) throw new Error("当前服务需重启后才能重命名空分组");
+      for (const id of ids) {
+        await api(`/api/monitors/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group_name: value }),
+        });
+      }
+    }
+    closeGroupPop();
+    if (activeGroup === name) activeGroup = value;
+    toast(`分组已重命名为「${value}」`);
+    await loadAll();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+$("gp-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); saveGroupRename(); }
+  else if (e.key === "Escape") { e.preventDefault(); closeGroupPop(); }
+});
+document.addEventListener("click", e => {
+  if ($("group-pop").style.display !== "block") return;
+  if (e.target.closest("#group-pop") || e.target.closest("#emoji-pop")) return;   // 点框内 / 图标选择器不关闭
+  closeGroupPop();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeGroupPop(); });
+window.addEventListener("resize", closeGroupPop);
+window.addEventListener("scroll", closeGroupPop, true);
+/* emoji 选择器的关闭时机：点别处 / Esc / 滚动 */
+document.addEventListener("click", e => {
+  if ($("emoji-pop").style.display !== "block") return;
+  if (e.target.closest("#emoji-pop") || e.target.closest(".icon-btn-round")) return;   // 点选择器或入口按钮不关闭
+  closeEmojiPicker();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeEmojiPicker(); });
+window.addEventListener("resize", closeEmojiPicker);
+window.addEventListener("scroll", closeEmojiPicker, true);
+
+async function loadAll() {
+  const [m, t, g, s] = await Promise.all([
+    api("/api/monitors"),
+    templates.length ? Promise.resolve({ templates }) : api("/api/templates"),
+    api("/api/groups").catch(() => ({ groups: [] })),
+    api("/api/settings").catch(() => null),
+  ]);
+  if (s && s.settings && s.settings.site) {
+    $("site-name").textContent = s.settings.site.name || "网页监控平台";
+    document.title = s.settings.site.name || "网页监控平台";
+  }
+  monitors = m.monitors;
+  templates = t.templates;
+  extraGroups = g.groups || [];
+  groupIcons = g.icons || {};
+  allTabIcon = g.all_icon || "";
+  renderChips();
+  renderFilterBar();
+  renderList();
+  renderTemplateOptions();
+  renderGroupOptions();
+}
+
+function renderChips() {
+  const total = monitors.length;
+  const ok = monitors.filter(m => m.enabled && m.last_ok === true).length;
+  const fail = monitors.filter(m => m.enabled && m.last_ok === false).length;
+  const paused = monitors.filter(m => !m.enabled).length;
+  $("chips").innerHTML =
+    `<span class="chip info"><span class="cdot"></span>全部 <b>${total}</b></span>` +
+    `<span class="chip good"><span class="cdot"></span>正常 <b>${ok}</b></span>` +
+    `<span class="chip bad"><span class="cdot"></span>异常 <b>${fail}</b></span>` +
+    (paused ? `<span class="chip warn"><span class="cdot"></span>已暂停 <b>${paused}</b></span>` : "");
+}
+
+const NOTIFY_LABEL = { change: "状态变化推送", in_stock: "有货推送", fail: "失败推送", never: "不推送" };
+
+function monitorCard(m) {
+  const st = statusOf(m);
+  const s = m.stats || {};
+  const stock = isStockMonitor(m);
+  const statusCls = st.cls.includes("ok") ? "green" : st.cls.includes("fail") ? "red" : "";
+  const rate = s.success_rate === null || s.success_rate === undefined ? null : s.success_rate;
+  const rateCls = rate === null ? "" : rate >= 90 ? "var(--green)" : rate >= 70 ? "var(--yellow)" : "var(--red)";
+  const siteUrl = m.last_data && (m.last_data.url || m.last_data.site_url);
+  return `
+  <div class="card ${st.cls}" draggable="true" data-mid="${m.id}">
+    <div class="top">
+      <span class="dot ${st.cls}" title="${st.text}"></span>
+      <span class="name" title="${esc(m.name)}">${esc(m.name)}</span>
+      <span class="badge pill ${statusCls}">${st.text}</span>
+      ${m.last_slow && m.last_ok !== false ? `<span class="badge yellow" title="最近一次执行耗时超过告警阈值">⚠ 慢</span>` : ""}
+      ${m.fail_count > 0 ? `<span class="badge red" title="连续 ${m.fail_count} 次没有货/失败">${stock ? "连续无货" : "连败"} ${m.fail_count}</span>` : ""}
+      ${(m.retry_count || 0) > 0 ? `<span class="badge" title="失败自动重试 ${m.retry_count} 次">↻ ${m.retry_count}</span>` : ""}
+      <span class="badge" title="推送策略">${NOTIFY_LABEL[m.notify_on] || m.notify_on}</span>
+    </div>
+    <div class="message" title="${esc(m.last_message)}">${esc(m.last_message) || "还没有运行记录"}</div>
+    <div class="meta">
+      <span class="mi"><span class="k">最近运行</span><b>${m.last_run_at ? fmtTime(m.last_run_at) : "—"}</b></span>
+      <span class="mi" ${m.active_windows ? `title="仅在北京时间 ${esc(fmtWindows(m.active_windows))} 执行"` : ""}>
+        <span class="k">下次运行</span><b>${m.enabled ? fmtIn(m.next_run_at) : "已暂停"}</b>
+      </span>
+      <span class="mi"><span class="k">间隔 / 超时</span><b>${m.interval_seconds}s / ${m.timeout_seconds}s</b></span>
+      <span class="mi" title="${[s.avg_ms ? `平均耗时 ${s.avg_ms}ms` : "", "只统计北京时间今天 0 点以后的执行，每日 0 点重置"].filter(Boolean).join("；")}">
+        <span class="k">${stock ? "今日有货率" : "今日成功率"}</span>
+        <b style="color:${rateCls || "var(--text)"}">${rate === null ? "—" : rate + "%"}${s.total ? ` (${s.ok_count || 0}/${s.total})` : ""}</b>
+      </span>
+      <span class="mi" style="grid-column:1/-1" title="监控时段（北京时间）；未配置时为全天">
+        <span class="k">监控时段</span>
+        <b>⏰ ${m.active_windows ? esc(fmtWindows(m.active_windows)) : "00:00-24:00"}</b>
+      </span>
+      ${(m.vendor || m.region || m.price_type || m.purchase_limit > 0 || m.realname) ? `<span class="mi" style="grid-column:1/-1" title="商品附加信息">
+        <span class="k">商品信息</span>
+        <b>${[
+          m.vendor ? `🏢 ${esc(m.vendor)}` : "",
+          m.region ? `📍 ${esc(m.region)}` : "",
+          m.price_type ? `🏷️ ${esc(priceTypeLabel(m.price_type))}` : "",
+          m.purchase_limit > 0 ? `🧾 限购 ${m.purchase_limit} 个` : "",
+          m.realname ? `🪪 ${esc(realnameLabel(m.realname))}` : "",
+        ].filter(Boolean).join("　")}</b>
+      </span>` : ""}
+    </div>
+    <div class="actions">
+      <button class="primary icon-btn" ${m.running ? "disabled" : ""} onclick="runNow(${m.id})" title="立即执行一次">▶ 执行</button>
+      <button class="icon-btn" onclick="openRuns(${m.id})" title="执行历史">🗒️</button>
+      <button class="icon-btn" onclick="openEditor(${m.id})" title="编辑监控">✏️</button>
+      ${siteUrl ? `<a class="icon-btn" href="${esc(siteUrl)}" target="_blank" rel="noopener noreferrer" title="前往对应站点">🔗</a>` : ""}
+      <label class="switch" title="启用/暂停">
+        <input type="checkbox" ${m.enabled ? "checked" : ""} onchange="toggleEnabled(${m.id}, this.checked)">
+        ${m.enabled ? "启用" : "暂停"}
+      </label>
+      <span class="spacer"></span>
+      <button class="danger icon-btn del-btn" onclick="askDelete(event, ${m.id})" title="删除监控">🗑️</button>
+    </div>
+  </div>`;
+}
+
+function renderList() {
+  if (draggingCards) return;   // 拖动排序期间不要被轮询刷新重建卡片
+  const box = $("list");
+  const shown = monitors.filter(m =>
+    activeGroup === "all" ? true : (m.group_name || "") === activeGroup);
+  $("empty").hidden = monitors.length > 0 || extraGroups.length > 0;
+  if (activeGroup !== "all" && !shown.length) {
+    box.innerHTML = `<div class="empty">该分组下暂时没有监控项</div>`;
+    return;
+  }
+  // 按分组聚合展示；"全部"视图下每组带可折叠标题，未分组排在最后
+  const groups = groupsOf().filter(g =>
+    activeGroup === "all" ? true : g === activeGroup);
+  box.innerHTML = groups.map((g, gi) => {
+    const items = shown.filter(m => (m.group_name || "") === g);
+    const label = g === "" ? "未分组" : `${iconOf(g)} ${g}`;
+    const collapsed = collapsedGroups.has(g);
+    return `
+    <div class="group-head ${collapsed ? "collapsed" : ""}" onclick="toggleGroupIdx(${gi})">
+      <span class="arrow">▼</span><span>${esc(label)}</span><span class="cnt">${items.length} 项</span>
+    </div>
+    <div class="grid" ${collapsed ? "hidden" : ""}>${items.length
+      ? items.map(monitorCard).join("")
+      : `<div class="muted" style="padding:6px 2px">该分组还没有监控项</div>`}</div>`;
+  }).join("");
+}
+
+function toggleGroupIdx(gi) {
+  const groups = groupsOf().filter(g =>
+    activeGroup === "all" ? true : g === activeGroup);
+  const g = groups[gi];
+  if (g === undefined) return;
+  collapsedGroups.has(g) ? collapsedGroups.delete(g) : collapsedGroups.add(g);
+  renderList();
+}
+
+/* ---------------- 监控项操作 ---------------- */
+
+async function runNow(id) {
+  const m = monitors.find(x => x.id === id);
+  try {
+    if (m) m.running = true; renderList();
+    const { result } = await api(`/api/monitors/${id}/run`, { method: "POST" });
+    const stockRun = isStockMonitor(m) || !!(result.data && typeof result.data.in_stock === "boolean");
+    if (stockRun) {
+      toast(`「${m?.name}」${result.ok ? "当前有货" : "当前无货"}：${result.message}（${result.duration_ms}ms）`);
+    } else {
+      toast(`「${m?.name}」执行${result.ok ? "成功" : "失败"}：${result.message}（${result.duration_ms}ms）`, !result.ok);
+    }
+    await loadAll();
+  } catch (e) {
+    toast(`执行失败：${e.message}`, true);
+    await loadAll();
+  }
+}
+
+async function toggleEnabled(id, enabled) {
+  try {
+    await api(`/api/monitors/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    toast(enabled ? "已启用" : "已暂停");
+    await loadAll();
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ---------------- 删除二次确认（贴按钮的悬浮框） ---------------- */
+
+let pendingDeleteId = null;
+
+function askDelete(evt, id) {
+  evt.stopPropagation();
+  const pop = $("del-pop");
+  const m = monitors.find(x => x.id === id);
+  pendingDeleteId = id;
+  $("del-pop-name").textContent = m ? m.name : `#${id}`;
+  pop.style.visibility = "hidden";
+  pop.style.display = "block";
+  // 先渲染再量尺寸，然后把浮框放在删除按钮正上方（空间不够则放下方）
+  const btn = evt.currentTarget.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  let left = btn.right - box.width;
+  left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
+  let top = btn.top - box.height - 8;
+  if (top < 8) top = btn.bottom + 8;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.visibility = "visible";
+  syncModalScrollLock();
+}
+
+function closeDeletePop() {
+  pendingDeleteId = null;
+  $("del-pop").style.display = "none";
+  syncModalScrollLock();
+}
+
+async function confirmDelete() {
+  const id = pendingDeleteId;
+  closeDeletePop();
+  if (id == null) return;
+  try {
+    await api(`/api/monitors/${id}`, { method: "DELETE" });
+    toast("已删除");
+    await loadAll();
+  } catch (e) { toast(e.message, true); }
+}
+
+document.addEventListener("click", e => {
+  if ($("del-pop").style.display !== "block") return;
+  if (e.target.closest("#del-pop") || e.target.closest(".del-btn")) return;
+  closeDeletePop();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDeletePop(); });
+window.addEventListener("resize", closeDeletePop);
+window.addEventListener("scroll", closeDeletePop, true);
+
+/* ---------------- 编辑器 ---------------- */
+
+function renderTemplateOptions() {
+  const sel = $("f-template");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">— 不套用 —</option>` +
+    templates.map(t => `<option value="${t.id}">${t.name}（${t.description}）</option>`).join("");
+  sel.value = current;
+  syncCdd("cdd-template");
+}
+
+function renderGroupOptions() {
+  // 分组改为自定义下拉菜单，打开时按 groupsOf() 动态生成，无需预渲染 datalist
+}
+
+/* ---------------- 自定义下拉框（编辑弹窗） ---------------- */
+let cddPick = null;
+
+function syncSelectCdd(selectId, wrapperId) {
+  const sel = $(selectId), wrapper = $(wrapperId);
+  if (!sel || !wrapper) return;
+  const option = [...sel.options].find(o => o.value === sel.value);
+  const label = wrapper.querySelector(".cdd-label");
+  if (label) label.textContent = option ? option.textContent : "";
+}
+
+function syncCdd(wrapperId) {
+  syncSelectCdd(wrapperId.replace(/^cdd-/, "f-"), wrapperId);
+}
+
+function syncAllCdd() {
+  syncCdd("cdd-template");
+  syncCdd("cdd-notify");
+  syncCdd("cdd-price-type");
+  syncCdd("cdd-realname");
+}
+
+function closeCddMenu() {
+  document.querySelectorAll(".cdd-menu").forEach(m => { m.hidden = true; });
+  cddPick = null;
+}
+
+function openCddMenu(button, items, activeValue, onPick, menuId = "cdd-menu") {
+  const menu = $(menuId);
+  cddPick = onPick;
+  menu.innerHTML = items.map((it, i) =>
+    `<button type="button" data-idx="${i}" class="${it.value === activeValue ? "active" : ""}">${esc(it.label)}</button>`
+  ).join("");
+  const handler = onPick;
+  menu.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      const item = items[Number(btn.dataset.idx)];
+      closeCddMenu();
+      if (item && handler) handler(item.value);
+    };
+  });
+  menu.hidden = false;
+
+  const rect = button.getBoundingClientRect();
+  const width = Math.min(420, Math.max(rect.width, 240));
+  menu.style.width = width + "px";
+  let left = rect.left;
+  if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
+  let top = rect.bottom + 6;
+  if (top + menu.offsetHeight > window.innerHeight - 8) {
+    top = Math.max(8, rect.top - menu.offsetHeight - 6);
+  }
+  menu.style.left = Math.max(8, left) + "px";
+  menu.style.top = top + "px";
+}
+
+function toggleSelectCdd(selectId, wrapperId, menuId = "cdd-menu") {
+  const menu = $(menuId);
+  if (menu && !menu.hidden) { closeCddMenu(); return; }
+  const sel = $(selectId), wrapper = $(wrapperId);
+  if (!sel || !wrapper) return;
+  const btn = wrapper.querySelector(".cdd-btn");
+  const items = [...sel.options].map(o => ({ value: o.value, label: o.textContent }));
+  openCddMenu(btn, items, sel.value, value => {
+    sel.value = value;
+    sel.dispatchEvent(new Event("change"));
+    syncSelectCdd(selectId, wrapperId);
+  }, menuId);
+}
+
+function toggleCdd(wrapperId) {
+  toggleSelectCdd(wrapperId.replace(/^cdd-/, "f-"), wrapperId);
+}
+
+function toggleGroupMenu(ev) {
+  const menu = $("cdd-menu");
+  if (!menu.hidden) { closeCddMenu(); return; }
+  const items = [{ value: "", label: "（不分组）" },
+    ...groupsOf().filter(g => g).map(g => ({ value: g, label: `${iconOf(g)} ${g}` }))];
+  openCddMenu(ev.currentTarget, items, $("f-group").value.trim(), value => {
+    $("f-group").value = value;
+  });
+}
+
+document.addEventListener("click", e => {
+  if (e.target.closest(".cdd-menu") || e.target.closest(".cdd-btn") || e.target.closest(".combo-btn")) return;
+  closeCddMenu();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeCddMenu();
+});
+window.addEventListener("scroll", e => {
+  if (e.target instanceof Element && e.target.closest(".cdd-menu")) return;
+  closeCddMenu();
+}, true);
+window.addEventListener("resize", closeCddMenu);
+$("dlg-editor").addEventListener("close", closeCddMenu);
+
+/* 新建分组：分组由监控项产生，所以建完直接打开新建监控并预填分组 */
+let newGroupIcon = "";   // 新建分组时选择的图标（空 = 默认 📁）
+
+function addGroup() {
+  $("new-group-name").value = "";
+  newGroupIcon = "";
+  $("new-group-icon-btn").textContent = DEFAULT_GROUP_ICON;
+  $("dlg-group").showModal();
+  setTimeout(() => $("new-group-name").focus(), 30);
+}
+
+/* 分组 emoji 选择器：openEmojiPicker(锚点元素, 当前图标, 选中回调)。
+   弹层贴着锚点显示，点别处 / 滚动 / Esc 关闭。 */
+const GROUP_EMOJIS = [
+  "📁", "📦", "🖥️", "☁️", "🔥", "⚡", "🛒", "💸",
+  "🎁", "🚀", "🌐", "💾", "🧩", "🔧", "🎯", "📌",
+  "⭐", "🎉", "🛡️", "⏰", "🤖", "🧪", "🎮", "📊",
+  "🗄️", "💡", "🏷️", "🧊", "🪙", "🏠", "🌍", "🍀",
+  "🎨", "🔴", "🟢", "🟡", "🔵", "🟣", "⚙️", "📡",
+  "🔒", "🛠️", "💳", "🧾", "🚗", "📱", "🥇", "🚨",
+];
+let emojiCb = null;
+
+function openEmojiPicker(anchor, current, cb) {
+  emojiCb = cb;
+  const pop = $("emoji-pop");
+  // 模态 <dialog> 在顶层渲染，挂在外面的弹层会被它盖住；锚点在 dialog 里时把弹层移进去
+  const host = anchor.closest("dialog") || document.body;
+  if (pop.parentElement !== host) host.appendChild(pop);
+  pop.innerHTML =
+    `<div class="em-grid">` +
+    GROUP_EMOJIS.map(e =>
+      `<button type="button" data-e="${e}" class="${e === current ? "cur" : ""}">${e}</button>`).join("") +
+    `</div><button type="button" class="em-clear" data-e="">恢复默认 ${DEFAULT_GROUP_ICON}</button>`;
+  pop.style.visibility = "hidden";
+  pop.style.display = "block";
+  // 先显示再量尺寸，贴着锚点弹出；底部放不下就改到锚点上方
+  const r = anchor.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - box.width - 8));
+  let top = r.bottom + 6;
+  if (top + box.height > window.innerHeight - 8) top = Math.max(8, r.top - box.height - 6);
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.visibility = "visible";
+  pop.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      const e = btn.dataset.e;
+      const cb = emojiCb;          // 先取回调再关弹层：closeEmojiPicker 会清空 emojiCb
+      closeEmojiPicker();
+      if (cb) cb(e);
+    };
+  });
+}
+
+function closeEmojiPicker() {
+  $("emoji-pop").style.display = "none";
+  emojiCb = null;
+}
+
+function pickNewGroupIcon(anchor) {
+  openEmojiPicker(anchor, newGroupIcon || DEFAULT_GROUP_ICON, e => {
+    newGroupIcon = e;
+    $("new-group-icon-btn").textContent = e || DEFAULT_GROUP_ICON;
+  });
+}
+
+/* 双击「全部」标签直接改图标：选中即保存 */
+function pickAllTabIcon(evt) {
+  evt.stopPropagation();
+  openEmojiPicker(evt.currentTarget, allIconOf(), async e => {
+    try {
+      const res = await api("/api/groups/icon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "__all__", icon: e }),
+      });
+      allTabIcon = res.all_icon ?? e;
+      renderFilterBar();
+      toast(e ? "「全部」图标已更新" : "「全部」已恢复默认图标");
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+}
+
+/* 重命名悬浮框里修改图标：选中即保存，不等“保存”按钮 */
+function pickGroupIcon(anchor) {
+  const name = renamingGroup;
+  if (!name) return;
+  openEmojiPicker(anchor, iconOf(name), async e => {
+    try {
+      await api("/api/groups/icon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, icon: e }),
+      });
+      toast(e ? `分组「${name}」图标已更新` : `分组「${name}」已恢复默认图标`);
+      await loadAll();
+      $("gp-icon-btn").textContent = iconOf(name);
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+}
+
+async function createGroup() {
+  const name = $("new-group-name").value.trim();
+  if (!name) { toast("请输入分组名称", true); return; }
+  try {
+    const res = await api("/api/groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, icon: newGroupIcon }),
+    });
+    extraGroups = res.groups || extraGroups;
+    groupIcons = res.icons || groupIcons;
+    closeDialog("dlg-group");
+    activeGroup = name;
+    renderChips();
+    renderFilterBar();
+    renderList();
+    renderGroupOptions();
+    toast(`已创建分组「${name}」`);
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+/* ---------------- 分步编辑 ---------------- */
+let editorStep = 1;
+
+function setStep(n) {
+  editorStep = Math.min(3, Math.max(1, n));
+  document.querySelectorAll("#dlg-editor .step-panel").forEach(p => {
+    p.hidden = Number(p.dataset.step) !== editorStep;
+  });
+  document.querySelectorAll("#editor-steps .step").forEach(s => {
+    const k = Number(s.dataset.step);
+    s.classList.toggle("active", k === editorStep);
+    s.classList.toggle("done", k < editorStep);
+  });
+  document.querySelectorAll("#editor-steps .step-line").forEach((line, i) => {
+    line.classList.toggle("done", i + 1 < editorStep);
+  });
+  $("btn-prev").hidden = editorStep === 1;
+  $("btn-next").hidden = editorStep === 3;
+  $("btn-save").hidden = editorStep !== 3;
+  $("btn-test").hidden = editorStep !== 3;
+  closeCddMenu();
+}
+
+function goStep(n) {
+  if (n > 1 && editorStep <= 1 && !$("f-name").value.trim()) {
+    toast("请先填写监控名称", true);
+    $("f-name").focus();
+    return;
+  }
+  setStep(n);
+}
+
+function openEditor(id) {
+  editingId = id;
+  const m = id ? monitors.find(x => x.id === id) : null;
+  $("editor-title").textContent = m ? `编辑监控 #${m.id}` : "新建监控";
+  $("editor-id-note").textContent = m
+    ? `创建于 ${fmtTime(m.created_at)} · 最近修改 ${fmtTime(m.updated_at)}`
+    : "提示：保存后按「执行间隔」自动运行";
+  $("f-template").value = "";
+  $("f-name").value = m ? m.name : "";
+  $("f-group").value = m ? (m.group_name || "") : (activeGroup !== "all" ? activeGroup : "");
+  $("f-interval").value = m ? m.interval_seconds : 30;
+  $("f-timeout").value = m ? m.timeout_seconds : 30;
+  $("f-notify").value = m ? m.notify_on : "change";
+  $("f-retry").value = m ? (m.retry_count || 0) : 0;
+  $("f-retry-gap").value = m ? (m.retry_interval ?? 5) : 5;
+  $("f-slow").value = m ? (m.slow_threshold_ms || 0) : 0;
+  $("f-windows").value = m ? fmtWindows(m.active_windows) : "";
+  $("f-vendor").value = m ? (m.vendor || "") : "";
+  $("f-region").value = m ? (m.region || "") : "";
+  $("f-price-type").value = m ? (m.price_type || "") : "";
+  $("f-limit").value = m ? (m.purchase_limit || 0) : 0;
+  $("f-realname").value = m ? (m.realname || "") : "";
+  $("f-params").value = m ? m.params : "{}";
+  $("f-code").value = m ? m.code : "";
+  $("test-box").style.display = "none";
+  lastTestResult = null;
+  $("test-preview-btn").hidden = true;
+  hideTestPreview();
+  closeCddMenu();
+  syncAllCdd();
+  baselineCode = $("f-code").value;
+  if (!m && templates.length) {
+    // 新建时默认套用第一个模板，降低上手成本（编辑器是空的，静默套用不弹确认）
+    $("f-template").value = templates[0].id;
+    applyTemplate(true);
+    syncAllCdd();
+  }
+  setStep(1);
+  $("dlg-editor").showModal();
+}
+
+let baselineCode = "";   // 上次套用模板 / 打开编辑器时的代码内容，用于判断用户是否改动过
+
+function applyTemplate(skipCheck = false) {
+  const tpl = templates.find(t => t.id === $("f-template").value);
+  if (!tpl) return;
+  const doApply = () => {
+    $("f-params").value = tpl.params;
+    $("f-windows").value = fmtWindows(tpl.active_windows || "");
+    $("f-code").value = tpl.code;
+    baselineCode = tpl.code;
+  };
+  // 编辑器内容没被改过（还是空的 / 还是上一套模板的内容）就静默套用，不打扰
+  if (skipCheck || $("f-code").value === baselineCode) { doApply(); return; }
+  uiConfirm(`套用模板「${tpl.name}」会覆盖当前代码与参数，继续？`).then(ok => {
+    if (ok) { doApply(); } else { $("f-template").value = ""; syncCdd("cdd-template"); }   // 取消则回退下拉选择
+  });
+}
+
+// 代码框支持 Tab 缩进
+document.addEventListener("DOMContentLoaded", () => {
+  $("f-code").addEventListener("keydown", e => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const el = e.target, { selectionStart: s, selectionEnd: end } = el;
+      el.value = el.value.slice(0, s) + "    " + el.value.slice(end);
+      el.selectionStart = el.selectionEnd = s + 4;
+    }
+  });
+});
+
+function editorPayload() {
+  return {
+    name: $("f-name").value.trim(),
+    group_name: $("f-group").value.trim(),
+    code: $("f-code").value,
+    params: $("f-params").value,
+    interval_seconds: Number($("f-interval").value),
+    timeout_seconds: Number($("f-timeout").value),
+    notify_on: $("f-notify").value,
+    retry_count: Math.max(0, Number($("f-retry").value) || 0),
+    retry_interval: Math.max(0, Number($("f-retry-gap").value) || 0),
+    slow_threshold_ms: Math.max(0, Number($("f-slow").value) || 0),
+    active_windows: windowsPayload(),
+    vendor: $("f-vendor").value.trim(),
+    region: $("f-region").value.trim(),
+    price_type: $("f-price-type").value,
+    purchase_limit: Math.max(0, Math.min(9999, Number($("f-limit").value) || 0)),
+    realname: $("f-realname").value,
+  };
+}
+
+/* 测试结果 -> 看板卡片预览（悬浮显示） */
+let lastTestResult = null;
+
+function hideTestPreview() {
+  $("test-preview").hidden = true;
+}
+
+function showTestPreview() {
+  if (!lastTestResult) return;
+  const r = lastTestResult;
+  const d = r.data || {};
+  const stock = typeof d.in_stock === "boolean";
+  const name = $("f-name").value.trim() || "未命名监控";
+  const group = $("f-group").value.trim();
+  const windows = $("f-windows").value.trim();
+  const ok = !!r.ok;
+
+  const statusText = stock ? (d.in_stock ? "有货" : "无货") : (ok ? "正常" : "异常");
+  const badgeCls = stock ? (d.in_stock ? "yes" : "no") : (ok ? "yes" : "no");
+
+  const isPct = !!d.percent_based;
+  const unit = isPct ? "%" : " 台";
+  const rows = [];
+  const addStat = (label, value, cls) =>
+    rows.push(`<span class="pv-stat"><span class="k">${esc(label)}</span><b class="${cls}">${esc(value)}</b></span>`);
+  if (typeof d.price === "number") addStat("价格", `${Number(d.price.toFixed(2))} 元/年`, "b-green");
+  if (typeof d.remaining === "number") addStat("剩余", `${d.remaining}${unit}`, d.remaining > 0 ? "b-green" : "b-red");
+  if (typeof d.stock === "number") addStat("总量", `${d.stock}${unit}`, "b-purple");
+  if (typeof d.usage === "number") addStat("已抢", `${d.usage}${unit}`, "b-red");
+
+  const meta = [group ? `${iconOf(group)} ${group}` : "", windows ? `⏰ ${windows}` : ""]
+    .filter(Boolean).join("　");
+
+  $("test-preview").innerHTML =
+    `<div class="pv-card ${ok ? "" : "fail"}">
+      <div class="pv-top">
+        <span class="pv-dot ${ok ? "" : "fail"}"></span>
+        <span class="pv-name">${esc(name)}</span>
+        <span class="pv-badge ${badgeCls}">${statusText}</span>
+      </div>
+      <div class="pv-msg">${esc(r.message || "")}</div>
+      ${d.sku ? `<div class="pv-spec">${esc(d.sku)}</div>` : ""}
+      ${rows.length ? `<div class="pv-stats">${rows.join("")}</div>` : ""}
+      ${meta ? `<div class="pv-meta">${esc(meta)}</div>` : ""}
+    </div>`;
+
+  const pop = $("test-preview");
+  pop.hidden = false;
+  const btn = $("test-preview-btn").getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let left = btn.right - w;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  let top = btn.bottom + 8;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, btn.top - h - 8);
+  pop.style.left = left + "px";
+  pop.style.top = top + "px";
+}
+
+async function testRun() {
+  const payload = editorPayload();
+  $("test-box").style.display = "block";
+  $("test-box").className = "test-result";
+  $("test-msg").textContent = "运行中…";
+  $("test-cost").textContent = "";
+  $("test-output").textContent = "";
+  $("btn-test").disabled = true;
+  $("test-preview-btn").hidden = true;
+  hideTestPreview();
+  try {
+    const { result } = await api("/api/run_test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    $("test-box").classList.add(result.ok ? "ok" : "fail");
+    $("test-msg").textContent = (result.ok ? "✅ " : "❌ ") + result.message;
+    $("test-cost").textContent = `${result.duration_ms}ms${result.timed_out ? " · 超时" : ""}`;
+    $("test-output").textContent = result.output || "（无输出）";
+    lastTestResult = result;
+    $("test-preview-btn").hidden = false;
+  } catch (e) {
+    $("test-box").classList.add("fail");
+    $("test-msg").textContent = "❌ " + e.message;
+    lastTestResult = null;
+    $("test-preview-btn").hidden = true;
+  } finally {
+    $("btn-test").disabled = false;
+  }
+}
+
+async function saveEditor() {
+  const payload = editorPayload();
+  if (!payload.name) { setStep(1); toast("监控名称不能为空", true); return; }
+  try {
+    JSON.parse(payload.params || "{}");
+  } catch { setStep(3); toast("参数 PARAMS 不是合法 JSON", true); return; }
+  try {
+    if (editingId) {
+      await api(`/api/monitors/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast("已保存");
+    } else {
+      await api("/api/monitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast("已创建，稍后自动开始第一轮监控");
+    }
+    // 新建时自动切到刚创建的分组，方便看到结果
+    if (!editingId && payload.group_name) activeGroup = payload.group_name;
+    closeDialog("dlg-editor");
+    await loadAll();
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ---------------- 执行历史 ---------------- */
+
+async function openRuns(id) {
+  currentRunsId = id;
+  const m = monitors.find(x => x.id === id);
+  $("runs-title").textContent = `执行历史 · ${m ? m.name : "#" + id}`;
+  $("runs-body").innerHTML = `<p class="muted">加载中…</p>`;
+  $("dlg-runs").showModal();
+  await loadRuns(id);
+}
+
+async function loadRuns(id) {
+  try {
+    const { runs } = await api(`/api/monitors/${id}/runs?limit=100`);
+    if (!runs.length) { $("runs-body").innerHTML = `<p class="muted">还没有执行记录</p>`; return; }
+    const stockMode = isStockMonitor(monitors.find(x => x.id === id))
+      || runs.some(r => r.data && typeof r.data.in_stock === "boolean");
+    const trend = trendBox(runs, stockMode);
+    $("runs-body").innerHTML = `
+      <div id="runs-fixed">${trend}</div>
+      <div id="runs-scroll">
+      <table class="runs">
+        <tr><th>时间</th><th>结果</th><th>消息</th><th>耗时</th><th>触发</th></tr>
+        ${runs.map((r, i) => `
+          <tr onclick="toggleDetail(${i})" style="cursor:pointer">
+            <td>${fmtTime(r.started_at)}</td>
+            <td class="${r.ok ? "run-ok" : "run-fail"}">${stockMode
+              ? (r.ok ? "✅ 有货" : "❌ 无货")
+              : (r.ok ? "✅ 正常" : "❌ 失败")}</td>
+            <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.message)}">${esc(r.message)}</td>
+            <td>${Math.round(r.duration_ms)}ms</td>
+            <td><span class="tag">${r.trigger === "manual" ? "手动" : "定时"}</span>
+                ${r.slow ? `<span class="tag" style="color:var(--yellow);border:1px solid var(--yellow)">⚠ 慢</span>` : ""}
+                ${r.attempt > 1 ? `<span class="tag" title="自动重试后成功">↻ 第${r.attempt}次</span>` : ""}</td>
+          </tr>
+          <tr class="detail-row" id="run-detail-${i}" hidden>
+            <td colspan="5"><pre>${esc(r.output || "（无输出）")}${r.data ? "\n\n[DATA] " + JSON.stringify(r.data, null, 2) : ""}</pre></td>
+          </tr>`).join("")}
+      </table>
+      </div>`;
+  } catch (e) {
+    $("runs-body").innerHTML = `<p class="muted">加载失败：${esc(e.message)}</p>`;
+  }
+}
+
+/* 执行历史趋势：纯 SVG 耗时柱状图（左旧右新）；存货监控显示有货/无货 */
+function trendBox(runs, stockMode = false) {
+  const total = runs.length;
+  const okCount = runs.filter(r => r.ok).length;
+  const avg = Math.round(runs.reduce((s, r) => s + r.duration_ms, 0) / total);
+  const max = Math.round(Math.max(...runs.map(r => r.duration_ms)));
+  const rate = Math.round(okCount / total * 100);
+  const rateCls = rate >= 90 ? "var(--green)" : rate >= 70 ? "var(--yellow)" : "var(--red)";
+  const W = 640, H = 130, padX = 6, top = 8, bottom = 22;
+  const data = [...runs].reverse();          // 柱状图从左到右 = 从旧到新
+  const n = data.length;
+  const step = (W - padX * 2) / n;
+  const bw = Math.max(2, Math.min(26, step * 0.72));
+  const maxDur = Math.max(...data.map(r => r.duration_ms), 1);
+  const bars = data.map((r, i) => {
+    const h = Math.max(2, (H - top - bottom) * (r.duration_ms / maxDur));
+    const x = padX + i * step + (step - bw) / 2;
+    const y = H - bottom - h;
+    const color = r.ok ? "var(--green)" : "var(--red)";
+    const stateText = stockMode ? (r.ok ? "有货" : "无货") : (r.ok ? "正常" : "失败");
+    const tip = `${fmtTime(r.started_at)} · ${stateText} · ${Math.round(r.duration_ms)}ms${r.slow ? " · 慢" : ""}${r.attempt > 1 ? ` · 第${r.attempt}次尝试` : ""}`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5"
+              fill="${color}" opacity="${r.slow ? "0.95" : "0.8"}" ${r.slow ? `stroke="var(--yellow)" stroke-width="1"` : ""}><title>${esc(tip)}</title></rect>`;
+  }).join("");
+  const baseY = H - bottom;
+  return `
+  <div class="trend-box">
+    <div class="trend-head">
+      <span>最近 <b>${total}</b> 次执行趋势</span>
+      <span>${stockMode ? "有货率" : "成功率"} <b style="color:${rateCls}">${rate}%</b></span>
+      <span>平均耗时 <b>${avg}ms</b></span>
+      <span>最大耗时 <b>${max}ms</b></span>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block" preserveAspectRatio="none">
+      <line x1="${padX}" y1="${baseY}" x2="${W - padX}" y2="${baseY}" stroke="var(--border)" stroke-width="1"/>
+      ${bars}
+      <text x="${padX}" y="${H - 6}" font-size="10" fill="var(--text-dim)">${esc(fmtTime(data[0].started_at))}</text>
+      <text x="${W - padX}" y="${H - 6}" font-size="10" fill="var(--text-dim)" text-anchor="end">${esc(fmtTime(data[n - 1].started_at))}</text>
+    </svg>
+    <div class="trend-legend">
+      <span><i style="background:var(--green)"></i>${stockMode ? "有货" : "成功"}</span>
+      <span><i style="background:var(--red)"></i>${stockMode ? "无货" : "失败"}</span>
+      <span><i style="background:transparent;border:1px solid var(--yellow)"></i>慢执行（超阈值）</span>
+      <span class="muted">鼠标悬停柱子可看详情；点击下方行查看完整输出</span>
+    </div>
+  </div>`;
+}
+
+function toggleDetail(i) { $(`run-detail-${i}`).hidden = !$(`run-detail-${i}`).hidden; }
+
+/* ---------------- 通知设置（可视化 Tab 编辑） ---------------- */
+
+const CHANNEL_DEFS = [
+  { type: "console", label: "控制台", desc: "消息打印到服务端日志（web_monitor/data/server.log），无需其他配置。", fields: [] },
+  { type: "email", label: "邮箱", desc: "QQ/163 邮箱的密码填「SMTP 授权码」（不是登录密码）。端口 465 勾 SSL（默认）；587 勾 STARTTLS、不勾 SSL（如 Gmail）。", fields: [
+    { key: "smtp_host", label: "SMTP 服务器 *", ph: "smtp.qq.com", required: true },
+    { key: "smtp_port", label: "端口", ph: "465", type: "number" },
+    { key: "user", label: "发件邮箱账号 *", ph: "your@qq.com", required: true },
+    { key: "password", label: "SMTP 授权码 *", ph: "授权码（不是登录密码）", type: "password", required: true },
+    { key: "to", label: "收件邮箱（多个用逗号分隔）*", ph: "a@example.com, b@example.com", required: true },
+    { key: "from_name", label: "发件人显示名（可选）", ph: "网页监控平台" },
+    { key: "use_ssl", label: "SSL（465 端口勾选）", type: "check", def: true },
+    { key: "use_starttls", label: "STARTTLS（587 端口勾选）", type: "check" },
+  ]},
+  { type: "wecom", label: "企业微信", desc: "群设置里添加「群机器人」后复制 Webhook 地址。", fields: [
+    { key: "webhook", label: "Webhook 地址 *", ph: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx", required: true },
+  ]},
+  { type: "dingtalk", label: "钉钉", desc: "群设置 → 机器人 → 自定义机器人；开了加签就填 secret。", fields: [
+    { key: "access_token", label: "Access Token *", ph: "机器人 Webhook 里的 access_token", required: true },
+    { key: "secret", label: "加签密钥（可选）", ph: "SEC 开头" },
+  ]},
+  { type: "serverchan", label: "Server酱", desc: "sctapi.ftqq.com 登录后获取 SendKey，微信收推送。", fields: [
+    { key: "sendkey", label: "SendKey *", ph: "SCTxxx", required: true },
+  ]},
+  { type: "bark", label: "Bark", desc: "iOS 装 Bark 后复制推送 URL。", fields: [
+    { key: "url", label: "推送 URL *", ph: "https://api.day.app/你的Key", required: true },
+  ]},
+  { type: "telegram", label: "Telegram", desc: "bot_token 找 @BotFather 创建机器人获取；给 bot 发条消息后访问 getUpdates 可看到 chat_id；国内直连不通时填代理（socks5 需先 pip install pysocks）。", fields: [
+    { key: "bot_token", label: "Bot Token *", ph: "123456:ABC-xxx", required: true },
+    { key: "chat_id", label: "Chat ID *", ph: "你的 chat_id", required: true },
+    { key: "proxy", label: "代理（可选）", ph: "http://127.0.0.1:7890" },
+  ]},
+  { type: "webhook", label: "Webhook", desc: "POST JSON 到自定义地址，可接 n8n / 飞书自定义机器人 / 自建服务。", fields: [
+    { key: "url", label: "URL *", ph: "https://你的服务/notify", required: true },
+    { key: "headers", label: "额外请求头（可选，JSON 对象）", ph: '{"Authorization": "Bearer xxx"}', type: "textarea" },
+  ]},
+];
+const CHANNEL_DEFAULTS = {
+  email: { smtp_host: "smtp.qq.com", smtp_port: 465, use_ssl: true },
+};
+let settingsState = [];   // 编辑中的渠道副本（含 _uid 运行时标记）
+let setTab = "general";
+let setUid = 1;
+
+function channelDef(type) { return CHANNEL_DEFS.find(d => d.type === type); }
+
+async function openSettings() {
+  try {
+    const { settings } = await api("/api/settings");
+    settingsState = (settings.channels || []).map(c => {
+      const copy = { ...c, _uid: setUid++ };
+      const def = channelDef(copy.type);
+      // 已保存的渠道缺省字段补上默认值，让界面显示与实际行为一致
+      if (def) for (const f of def.fields) {
+        if (f.def !== undefined && copy[f.key] === undefined) copy[f.key] = f.def;
+      }
+      return copy;
+    });
+    settingsCooldown = settings.notify?.cooldown_seconds ?? 300;
+    setTab = "general";
+    renderSettingsTabs();
+    renderSettingsBody();
+    $("dlg-settings").showModal();
+  } catch (e) { toast(e.message, true); }
+}
+
+let settingsCooldown = 300;
+
+function renderSettingsTabs() {
+  const btn = (id, icon, label, extra = "") =>
+    `<button class="${setTab === id ? "active" : ""}" onclick="switchSetTab('${id}')"><span class="tab-ic">${icon}</span>${label}${extra}</button>`;
+  $("set-tabs").innerHTML =
+    btn("general", "⚙️", "通用") +
+    CHANNEL_DEFS.map(d => {
+      const n = settingsState.filter(c => c.type === d.type).length;
+      return btn(d.type, CHANNEL_TYPE_ICON[d.type] || "🔔", d.label, n ? ` <span class="tag">${n}</span>` : "");
+    }).join("");
+}
+
+function switchSetTab(id) { setTab = id; renderSettingsTabs(); renderSettingsBody(); }
+
+/* 渠道类型彩色图标（tab / 卡片头部 / 渠道列表 / 通知日志共用） */
+const CHANNEL_TYPE_ICON = {
+  console: "🖥️", email: "📧", wecom: "💬", dingtalk: "📣",
+  serverchan: "📢", bark: "📱", telegram: "✈️", webhook: "🔗",
+};
+
+const CHANNEL_TYPE_LABEL = {
+  console: "控制台", email: "邮箱", wecom: "企业微信", dingtalk: "钉钉",
+  serverchan: "Server酱", bark: "Bark", telegram: "Telegram", webhook: "Webhook",
+};
+
+/* 通用页渠道列表：点击状态徽标直接切换启用/停用（内存态，保存后生效） */
+function toggleChanState(uid) {
+  const ch = settingsState.find(c => c._uid === uid);
+  if (!ch) return;
+  ch.disabled = !ch.disabled;
+  renderSettingsBody();
+}
+
+/* 通知设置 → 通用页：拉取最近 50 条推送日志 */
+/* ---------------- 网站设置 ---------------- */
+
+async function openSiteSettings() {
+  try {
+    const { settings } = await api("/api/settings");
+    const site = settings.site || {};
+    $("site-name-input").value = site.name || "";
+    $("site-stock-title").value = site.stock_title || "";
+    $("site-footer").value = site.footer || "";
+    $("dlg-site").showModal();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function saveSiteSettings() {
+  try {
+    const { settings } = await api("/api/settings");
+    const res = await api("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channels: settings.channels || [],
+        notify: settings.notify || {},
+        site: {
+          name: $("site-name-input").value.trim(),
+          stock_title: $("site-stock-title").value.trim(),
+          footer: $("site-footer").value.trim(),
+        },
+      }),
+    });
+    const site = (res.settings && res.settings.site) || {};
+    $("site-name").textContent = site.name || "网页监控平台";
+    document.title = site.name || "网页监控平台";
+    closeDialog("dlg-site");
+    toast("网站设置已保存");
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ---------------- 访问统计（公开看板 /） ---------------- */
+
+async function openVisitStats() {
+  $("dlg-visits").showModal();
+  $("visit-body").innerHTML = `<p class="muted" style="padding:40px 0;text-align:center">加载中…</p>`;
+  try {
+    renderVisitStats(await api("/api/visits/stats?days=14"));
+  } catch (e) {
+    $("visit-body").innerHTML =
+      `<p class="inline-note" style="color:var(--red);text-align:center;padding:20px 0">加载失败：${esc(e.message)}</p>`;
+  }
+}
+
+function renderVisitStats(s) {
+  visitRecentRows = s.recent || [];   // 供访客详情悬浮框按行号取数据
+  const maxPv = Math.max(1, ...s.daily.map(d => Math.max(d.pv, d.uv)));
+  const tiles = [
+    ["今日访问", s.today_pv, "pv"], ["今日访客", s.today_uv, "uv"],
+    ["今日 IP", s.today_ip || 0, "ip"], ["今日移动端", s.today_mobile || 0, "mobile"],
+    ["累计访问", s.total_pv, "pv"], ["累计访客", s.total_uv, "uv"],
+    ["累计 IP", s.total_ip || 0, "ip"], ["设备类型", s.total_devices || 0, "device"],
+  ].map(([k, v, c]) => `<div class="vs-tile ${c}"><b>${v}</b><span>${k}</span></div>`).join("");
+  const breakdown = [
+    ["设备分布", s.device_stats, "b1", "device"],
+    ["浏览器分布", s.browser_stats, "b2", "browser"],
+    ["系统分布", s.os_stats, "b3", "os"],
+  ].map(([title, list, cls, tab]) => {
+    const items = list || [];
+    const max = Math.max(1, ...items.map(x => x.count));
+    const rows = items.length ? items.map(it => `
+      <div class="bd-row ${cls}">
+        <span class="bn" title="${esc(it.name)}">${esc(it.name)}</span>
+        <span class="bb"><i style="width:${Math.round(it.count / max * 100)}%"></i></span>
+        <span class="bc">${it.count}</span>
+      </div>`).join("") : `<div class="bd-empty">暂无数据</div>`;
+    return `<div class="bd-block"><div class="bd-title">${title}<button class="vs-detail" data-detail="${tab}">详情</button></div>${rows}</div>`;
+  }).join("");
+  const daily = s.daily.map(d => `
+    <div class="vc-col ${d.today ? "today" : ""}" title="${d.day}：访问 ${d.pv}，访客 ${d.uv}">
+      <div class="vc-bars">
+        <i class="vc-bar pv" style="height:${d.pv ? Math.max(3, Math.round(d.pv / maxPv * 100)) : 0}%"></i>
+        <i class="vc-bar uv" style="height:${d.uv ? Math.max(3, Math.round(d.uv / maxPv * 100)) : 0}%"></i>
+      </div>
+      <span class="vc-label">${d.day.slice(5)}</span>
+      <span class="vc-n">${d.pv}/${d.uv}</span>
+    </div>`).join("");
+  const recent = s.recent.length ? s.recent.map((r, i) => `
+    <div class="vs-recent cl-row" onclick="openVisitPop(event, this, ${i})" title="点击查看访客详情悬浮框">
+      <div class="vr-line">
+        <span class="lt">${fmtTime(r.ts)}</span>
+        <span class="vip">${esc(r.ip || "未知 IP")}</span>
+        ${r.device ? `<span class="vdev">${esc(r.device)}</span>` : ""}
+        ${r.browser ? `<span class="vbrowser">${esc(r.browser)}</span>` : ""}
+        ${r.os ? `<span class="vos">${esc(r.os)}</span>` : ""}
+      </div>
+      <div class="vr-line">
+        <span class="lv">访客 ${esc((r.visitor || "").slice(0, 8))}</span>
+        <span class="lr" title="${esc(r.referer)}">${r.referer ? esc(r.referer) : "直接访问"}</span>
+      </div>
+    </div>`).join("")
+    : `<p class="inline-note" style="text-align:center;padding:16px 0">还没有访问记录；有人打开公开看板 / 后这里会显示。</p>`;
+  $("visit-body").innerHTML = `
+    <div class="vs-tiles">${tiles}</div>
+    <div class="vs-breakdown">${breakdown}</div>
+    <div class="vs-block">
+      <div class="vs-title">
+        <span>近 14 天趋势</span>
+        <span style="display:inline-flex;align-items:center;gap:10px">
+          <span class="vs-legend"><i class="pv"></i>访问 <i class="uv"></i>访客</span>
+          <button class="vs-detail" data-detail="trend">详情</button>
+        </span>
+      </div>
+      <div class="vc-chart">${daily}</div>
+    </div>
+    <div class="vs-block">
+      <div class="vs-title"><span>最近访问</span><button class="vs-detail" data-detail="list">详情</button></div>
+      <div class="vs-recent-list">${recent}</div>
+    </div>`;
+}
+
+/* ---------------- 跳转点击统计（「前往站点」/go/<token>） ---------------- */
+
+function hostOf(u) {
+  try { return new URL(u).host || u; } catch (_) { return u || ""; }
+}
+
+async function openClickStats() {
+  $("dlg-clicks").showModal();
+  $("click-body").innerHTML = `<p class="muted" style="padding:40px 0;text-align:center">加载中…</p>`;
+  try {
+    renderClickStats(await api("/api/clicks/stats?days=14"));
+  } catch (e) {
+    $("click-body").innerHTML =
+      `<p class="inline-note" style="color:var(--red);text-align:center;padding:20px 0">加载失败：${esc(e.message)}</p>`;
+  }
+}
+
+function renderClickStats(s) {
+  clickRecentRows = s.recent || [];   // 供访客详情悬浮框按行号取数据
+  const maxCv = Math.max(1, ...s.daily.map(d => Math.max(d.clicks, d.visitors)));
+  const tiles = [
+    ["今日点击", s.today_clicks, "pv"], ["今日人数", s.today_visitors, "uv"],
+    ["累计点击", s.total_clicks, "ip"], ["累计人数", s.total_visitors, "mobile"],
+  ].map(([k, v, c]) => `<div class="vs-tile ${c}"><b>${v}</b><span>${k}</span></div>`).join("");
+
+  const topItems = s.top || [];
+  const maxClicks = Math.max(1, ...topItems.map(x => x.clicks));
+  const top = topItems.length ? topItems.map(it => `
+    <div class="bd-row b1">
+      <span class="bn" title="${esc(it.url)}">${esc(it.monitor_name || hostOf(it.url))}</span>
+      <span class="bb"><i style="width:${Math.round(it.clicks / maxClicks * 100)}%"></i></span>
+      <span class="bc" style="width:auto">${it.clicks}</span>
+    </div>`).join("") : `<div class="bd-empty">还没有点击记录</div>`;
+
+  const daily = s.daily.map(d => `
+    <div class="vc-col ${d.today ? "today" : ""}" title="${d.day}：点击 ${d.clicks}，人数 ${d.visitors}">
+      <div class="vc-bars">
+        <i class="vc-bar pv" style="height:${d.clicks ? Math.max(3, Math.round(d.clicks / maxCv * 100)) : 0}%"></i>
+        <i class="vc-bar uv" style="height:${d.visitors ? Math.max(3, Math.round(d.visitors / maxCv * 100)) : 0}%"></i>
+      </div>
+      <span class="vc-label">${d.day.slice(5)}</span>
+      <span class="vc-n">${d.clicks}/${d.visitors}</span>
+    </div>`).join("");
+
+  const recent = (s.recent || []).length ? s.recent.map((r, i) => `
+    <div class="vs-recent cl-row" onclick="openClickPop(event, this, ${i})" title="点击查看访客详情悬浮框">
+      <div class="vr-line">
+        <span class="lt">${fmtTime(r.ts)}</span>
+        <span class="vdev">${esc(r.monitor_name || "未知监控项")}</span>
+        <span class="lr" title="${esc(r.url)}">${esc(hostOf(r.url))}</span>
+      </div>
+      <div class="vr-line">
+        <span class="vip">${esc(r.ip || "未知 IP")}</span>
+        ${r.device ? `<span class="vdev">${esc(r.device)}</span>` : ""}
+        ${r.browser ? `<span class="vbrowser">${esc(r.browser)}</span>` : ""}
+        ${r.os ? `<span class="vos">${esc(r.os)}</span>` : ""}
+        <span class="lv">访客 ${esc((r.visitor || "").slice(0, 8))}</span>
+      </div>
+    </div>`).join("")
+    : `<p class="inline-note" style="text-align:center;padding:16px 0">还没有点击记录；有人点公开看板上的「前往站点」后这里会显示。</p>`;
+
+  $("click-body").innerHTML = `
+    <div class="vs-tiles">${tiles}</div>
+    <div class="vs-block">
+      <div class="vs-title"><span>点击排行</span><span class="vs-legend">按目标地址归组</span></div>
+      <div class="bd-block">${top}</div>
+    </div>
+    <div class="vs-block">
+      <div class="vs-title">
+        <span>近 14 天趋势</span>
+        <span class="vs-legend"><i class="pv"></i>点击 <i class="uv"></i>人数</span>
+      </div>
+      <div class="vc-chart">${daily}</div>
+    </div>
+    <div class="vs-block">
+      <div class="vs-title"><span>最近点击</span></div>
+      <div class="vs-recent-list">${recent}</div>
+    </div>`;
+}
+
+/* ---------------- 接口调用统计（/api/*） ---------------- */
+
+const METHOD_CLS = { GET: "m-get", POST: "m-post", PUT: "m-put", DELETE: "m-del" };
+let apiStatsAuth = "all";   // 当前筛选：all / public / admin
+let apiStatsData = null;    // 当前渲染的统计数据（供接口管理悬浮框取行数据）
+
+async function openApiStats() {
+  const dlg = $("dlg-api-stats");
+  if (!dlg.open) dlg.showModal();   // 切换筛选时弹窗已开，不再重复 showModal
+  const body = $("api-stats-body");
+  const firstOpen = !body.querySelector(".vs-tiles");
+  // 切换筛选时保留旧内容并压暗，避免「清空 -> 加载中 -> 重绘」造成弹窗高度抖动
+  if (firstOpen) {
+    body.innerHTML = `<p class="muted" style="padding:40px 0;text-align:center">加载中…</p>`;
+  }
+  body.classList.add("as-loading");
+  document.querySelectorAll("#dlg-api-stats .as-tabs button").forEach(b =>
+    b.classList.toggle("active", b.dataset.auth === apiStatsAuth));
+  try {
+    renderApiStats(await api(`/api/api-stats?days=14&auth=${apiStatsAuth}`));
+  } catch (e) {
+    if (firstOpen) {
+      body.innerHTML =
+        `<p class="inline-note" style="color:var(--red);text-align:center;padding:20px 0">加载失败：${esc(e.message)}</p>`;
+    } else {
+      toast("加载失败：" + e.message, true);   // 保留旧数据，仅提示
+    }
+  } finally {
+    body.classList.remove("as-loading");
+  }
+}
+
+function switchApiAuth(mode) {
+  apiStatsAuth = mode;
+  document.querySelectorAll("#dlg-api-stats .as-tabs button").forEach(b =>
+    b.classList.toggle("active", b.dataset.auth === mode));
+  openApiStats();
+}
+
+function methodBadge(m) {
+  return `<span class="method-badge ${METHOD_CLS[m] || ""}">${esc(m)}</span>`;
+}
+
+function renderApiStats(s) {
+  closeApiPop();      // 数据刷新后旧的选中行已失效，收起管理悬浮框
+  apiStatsData = s;   // 供接口管理悬浮框按行取数据（含 disabled / protected）
+  const maxReq = Math.max(1, ...s.daily.map(d => d.req));
+  const tiles = [
+    ["今日请求", s.today_req, "pv"], ["今日错误", s.today_err, "uv"],
+    ["累计请求", s.total_req, "ip"], ["累计错误", s.total_err, "mobile"],
+  ].map(([k, v, c]) => `<div class="vs-tile ${c}"><b>${v}</b><span>${k}</span></div>`).join("");
+
+  const rows = (s.endpoints || []).map((ep, i) => {
+    const desc = (s.descriptions || {})[ep.route] || "";
+    const title = `${desc ? desc + "\n" : ""}点击管理该接口的启用 / 停用`;
+    return `
+    <tr class="as-clickable" data-route="${esc(ep.route)}" onclick="openApiPop(event, this, ${i})" title="${esc(title)}">
+      <td class="as-route" title="${esc(ep.route)}">${methodBadge(ep.method)}<span>${esc(ep.route)}</span>${ep.disabled ? `<span class="as-disabled-badge">已停用</span>` : ""}</td>
+      <td class="num">${ep.today}</td>
+      <td class="num"><b>${ep.total}</b></td>
+      <td class="num ${ep.err ? "has-err" : ""}">${ep.err || "—"}</td>
+      <td class="num">${ep.avg_ms}ms</td>
+      <td class="num">${ep.max_ms}ms</td>
+      <td class="lt-cell">${fmtTime(ep.last_ts)}</td>
+    </tr>`;
+  }).join("");
+
+  const daily = s.daily.map(d => `
+    <div class="vc-col ${d.today ? "today" : ""}" title="${d.day}：请求 ${d.req}，错误 ${d.err}">
+      <div class="vc-bars">
+        <i class="vc-bar pv" style="height:${d.req ? Math.max(3, Math.round(d.req / maxReq * 100)) : 0}%"></i>
+        <i class="vc-bar uv err" style="height:${d.err ? Math.max(3, Math.round(d.err / maxReq * 100)) : 0}%"></i>
+      </div>
+      <span class="vc-label">${d.day.slice(5)}</span>
+      <span class="vc-n">${d.req}/${d.err}</span>
+    </div>`).join("");
+
+  const recent = (s.recent || []).length ? s.recent.map(r => `
+    <div class="vs-recent">
+      <div class="vr-line">
+        <span class="lt">${fmtTime(r.ts)}</span>
+        ${methodBadge(r.method)}
+        <span class="as-route-inline" title="${esc(r.route)}">${esc(r.route)}</span>
+        <span class="as-status ${r.status >= 400 ? "bad" : "ok"}">${r.status}</span>
+        <span class="vos">${Number(r.dur_ms || 0).toFixed(2)}ms</span>
+        <span class="lv">${esc(r.ip || "")}</span>
+      </div>
+    </div>`).join("")
+    : `<p class="inline-note" style="text-align:center;padding:16px 0">还没有调用记录。</p>`;
+
+  $("api-stats-body").innerHTML = `
+    <div class="vs-tiles">${tiles}</div>
+    <div class="vs-block">
+      <div class="vs-title">
+        <span>近 14 天调用</span>
+        <span class="vs-legend"><i class="pv"></i>请求 <i class="uv"></i>错误</span>
+      </div>
+      <div class="vc-chart">${daily}</div>
+    </div>
+    <div class="vs-block">
+      <div class="vs-title"><span>接口明细（按累计调用排序）</span></div>
+      <div class="as-table-wrap">
+        <table class="as-table">
+          <thead><tr>
+            <th>接口</th><th>今日</th><th>累计</th><th>错误</th><th>平均耗时</th><th>最大耗时</th><th>最近调用</th>
+          </tr></thead>
+          <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:var(--text-dim)">暂无数据</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="vs-block">
+      <div class="vs-title"><span>最近调用</span></div>
+      <div class="vs-recent-list">${recent}</div>
+    </div>`;
+}
+
+/* ---------------- 接口管理悬浮框（启用 / 停用） ---------------- */
+let apiPopEp = null;   // 悬浮框当前选中的接口数据（apiStatsData.endpoints 里的引用）
+
+function renderApiPop() {
+  const pop = $("api-pop");
+  const ep = apiPopEp;
+  if (!ep) { closeApiPop(); return; }
+  const protectedEp = (apiStatsData.protected || []).includes(ep.route);
+  const desc = (apiStatsData.descriptions || {})[ep.route] || "";
+  const state = ep.disabled
+    ? `<span class="as-state off">⛔ 已停用</span>`
+    : `<span class="as-state on">✅ 启用中</span>`;
+  pop.innerHTML = `
+    <div class="cp-title">🔌 接口管理 ${state}</div>
+    <div class="cp-grid">
+      ${cpRow("路由", esc(ep.route))}
+      ${cpRow("方法", methodBadge(ep.method))}
+      ${desc ? cpRow("说明", esc(desc)) : ""}
+      ${cpRow("今日 / 累计", `${ep.today} / ${ep.total}`)}
+      ${cpRow("错误", ep.err || "—")}
+      ${cpRow("平均 / 最大", `${ep.avg_ms}ms / ${ep.max_ms}ms`)}
+      ${cpRow("最近调用", fmtTime(ep.last_ts))}
+    </div>
+    ${protectedEp
+      ? `<button class="as-toggle" disabled title="登录 / 登出 / 会话 / 接口管理 / 接口统计为受保护接口">🔒 受保护接口</button>`
+      : `<button class="as-toggle ${ep.disabled ? "ok" : "danger"}" onclick="toggleApiDisable()">
+           ${ep.disabled ? "✅ 启用此接口" : "⛔ 停用此接口"}</button>`}
+    <p class="as-tip">${protectedEp
+      ? "该接口参与登录与统计管理，不能停用。"
+      : "停用后该接口立即返回 503，可随时回到这里启用。"}</p>`;
+}
+
+function openApiPop(e, row, idx) {
+  const pop = $("api-pop");
+  const ep = (apiStatsData && apiStatsData.endpoints || [])[idx];
+  if (!ep) return;
+  if (!pop.hidden && apiPopEp === ep) { closeApiPop(); return; }   // 再点同一行收起
+  apiPopEp = ep;
+  document.querySelectorAll("#api-stats-body .as-sel").forEach(tr =>
+    tr.classList.remove("as-sel"));
+  row.classList.add("as-sel");   // 高亮选中行
+  renderApiPop();
+  pop.hidden = false;
+  placeInfoPop(e, pop);
+}
+
+function closeApiPop() {
+  const pop = $("api-pop");
+  pop.hidden = true;
+  apiPopEp = null;
+  document.querySelectorAll("#api-stats-body .as-sel").forEach(tr =>
+    tr.classList.remove("as-sel"));
+}
+
+async function toggleApiDisable() {
+  if (!apiPopEp) return;
+  const ep = apiPopEp;
+  const target = !ep.disabled;
+  const btn = document.querySelector("#api-pop .as-toggle");
+  if (btn) { btn.disabled = true; btn.textContent = "处理中…"; }
+  try {
+    const res = await api("/api/api-manage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ route: ep.route, disabled: target }),
+    });
+    ep.disabled = res.disabled;
+    renderApiPop();
+    // 同步表格行上的「已停用」徽标
+    const badgeHost = document.querySelector(
+      `#api-stats-body .as-table tbody tr[data-route="${CSS.escape(ep.route)}"] .as-route`);
+    if (badgeHost) {
+      let badge = badgeHost.querySelector(".as-disabled-badge");
+      if (ep.disabled && !badge) {
+        badge = document.createElement("span");
+        badge.className = "as-disabled-badge";
+        badge.textContent = "已停用";
+        badgeHost.appendChild(badge);
+      }
+      if (!ep.disabled && badge) badge.remove();
+    }
+    toast(res.disabled ? `⛔ ${ep.route} 已停用` : `✅ ${ep.route} 已启用`);
+  } catch (e) {
+    toast(e.message, true);
+    renderApiPop();
+  }
+}
+
+/* ---------------- 访客详情悬浮框（跳转统计 + 访问统计共用） ---------------- */
+let clickRecentRows = [];   // 与跳转统计「最近点击」行顺序对应的记录数据
+let visitRecentRows = [];   // 与访问统计「最近访问」行顺序对应的记录数据
+
+const cpRow = (k, v) => v
+  ? `<div class="cp-row"><span class="ck">${k}</span><span class="cv">${v}</span></div>` : "";
+
+function placeInfoPop(e, pop) {
+  // 显示在鼠标旁边：右侧偏下弹出，靠边时翻到另一侧 / 收拢进视口
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  const mx = e.clientX, my = e.clientY, gap = 14, margin = 12;
+  let x = mx + gap;
+  if (x + pw > window.innerWidth - margin) x = Math.max(mx - pw - gap, margin);
+  let y = my + gap;
+  if (y + ph > window.innerHeight - margin) y = Math.max(my - ph - gap, margin);
+  x = Math.max(x, margin);
+  y = Math.max(y, margin);
+  pop.style.left = x + "px";
+  pop.style.top = y + "px";
+}
+
+function closeInfoPop(pop) {
+  if (!pop) return;
+  pop.hidden = true;
+  pop._idx = null;
+  if (pop._row) { pop._row.classList.remove("cl-active"); pop._row = null; }  // 取消行高亮
+}
+
+function markActiveRow(pop, row) {
+  if (pop._row === row) return;
+  if (pop._row) pop._row.classList.remove("cl-active");
+  pop._row = row || null;
+  if (row) row.classList.add("cl-active");
+}
+
+function closeClickPop() { closeInfoPop($("click-pop")); }
+function closeVisitPop() { closeInfoPop($("visit-pop")); }
+
+function openClickPop(e, row, idx) {
+  const pop = $("click-pop");
+  if (!pop.hidden && pop._idx === idx) { closeClickPop(); return; }  // 再点同一行收起
+  markActiveRow(pop, row);   // 高亮悬浮框对应的行
+  const r = clickRecentRows[idx] || {};
+  const fullTime = new Date((r.ts || 0) * 1000).toLocaleString("zh-CN", { hour12: false });
+  pop.innerHTML =
+    `<div class="cp-title">🔗 访客详情</div><div class="cp-grid">` +
+    cpRow("目标地址", r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.url)}</a>` : "") +
+    cpRow("IP 地址", esc(r.ip || "未知 IP")) +
+    cpRow("访客标识", esc(r.visitor || "未知")) +
+    cpRow("设备", esc(r.device || "未知")) +
+    cpRow("浏览器", esc(r.browser || "未知")) +
+    cpRow("系统", esc(r.os || "未知")) +
+    cpRow("来源页", r.referer ? esc(r.referer) : "直接访问") +
+    cpRow("点击时间", esc(fullTime)) +
+    `</div>`;
+  pop._idx = idx;
+  pop.hidden = false;
+  placeInfoPop(e, pop);
+}
+
+function openVisitPop(e, row, idx) {
+  const pop = $("visit-pop");
+  if (!pop.hidden && pop._idx === idx) { closeVisitPop(); return; }
+  markActiveRow(pop, row);   // 高亮悬浮框对应的行
+  const r = visitRecentRows[idx] || {};
+  const fullTime = new Date((r.ts || 0) * 1000).toLocaleString("zh-CN", { hour12: false });
+  pop.innerHTML =
+    `<div class="cp-title">👁 访客详情</div><div class="cp-grid">` +
+    cpRow("访问路径", r.path ? esc(r.path) : "未知") +
+    cpRow("IP 地址", esc(r.ip || "未知 IP")) +
+    cpRow("访客标识", esc(r.visitor || "未知")) +
+    cpRow("设备", esc(r.device || "未知")) +
+    cpRow("浏览器", esc(r.browser || "未知")) +
+    cpRow("系统", esc(r.os || "未知")) +
+    cpRow("来源页", r.referer ? esc(r.referer) : "直接访问") +
+    cpRow("访问时间", esc(fullTime)) +
+    cpRow("User-Agent", esc(r.user_agent || "无")) +
+    `</div>`;
+  pop._idx = idx;
+  pop.hidden = false;
+  placeInfoPop(e, pop);
+}
+
+// 点悬浮框外 / 列表滚动 / 窗口缩放 / 弹窗关闭时收起悬浮框
+document.addEventListener("mousedown", e => {
+  const inRow = e.target.closest && e.target.closest(".cl-row, .as-clickable");
+  for (const pop of [$("click-pop"), $("visit-pop"), $("api-pop")]) {
+    if (!pop || pop.hidden) continue;
+    if (pop.contains(e.target) || inRow) continue;  // 行内点击交给行处理
+    if (pop.id === "api-pop") closeApiPop(); else closeInfoPop(pop);
+  }
+});
+document.addEventListener("scroll", () => { closeClickPop(); closeVisitPop(); closeApiPop(); }, true);
+window.addEventListener("resize", () => { closeClickPop(); closeVisitPop(); closeApiPop(); });
+$("dlg-clicks").addEventListener("close", closeClickPop);
+$("dlg-visits").addEventListener("close", closeVisitPop);
+$("dlg-api-stats").addEventListener("close", closeApiPop);
+
+/* ---------------- 访客明细与可视化 ---------------- */
+const VD_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#a78bfa", "#ec4899", "#06b6d4", "#ef4444", "#84cc16"];
+let visitDetailRows = [];
+let visitDetailLoaded = false;
+let visitDetailTab = "list";
+let visitDetailMode = "bar";
+
+document.addEventListener("click", e => {
+  const btn = e.target.closest("[data-detail]");
+  if (btn) openVisitDetail(btn.dataset.detail);
+});
+
+async function openVisitDetail(tab = "list") {
+  visitDetailTab = tab || "list";
+  visitDetailMode = "bar";
+  closeCddMenu();
+  $("dlg-visit-detail").showModal();
+  $("vd-search").innerHTML = "";
+  syncSelectCdd("vd-range", "vd-range-cdd");
+  $("vd-summary").textContent = "加载中…";
+  $("vd-chart").innerHTML = "";
+  $("vd-table").innerHTML = "";
+  try {
+    const res = await api("/api/visits/list?limit=1000");
+    visitDetailRows = res.items || [];
+    visitDetailLoaded = true;
+    renderVisitDetail();
+  } catch (e) {
+    $("vd-summary").textContent = "加载失败：" + e.message;
+  }
+}
+
+function setVisitTab(tab) {
+  if (tab === "trend" && visitDetailMode === "pie") visitDetailMode = "bar";
+  visitDetailTab = tab;
+  renderVisitDetail();
+}
+function setVisitMode(mode) { visitDetailMode = mode; renderVisitDetail(); }
+function onVisitSearch() {
+  const box = $("vd-search");
+  if (box && !box.textContent.trim()) box.innerHTML = "";
+  if (visitDetailLoaded) renderVisitDetail();
+}
+
+function filteredVisitRows() {
+  const q = ($("vd-search").textContent || "").trim().toLowerCase();
+  const range = parseInt($("vd-range").value || "0", 10);
+  const now = Date.now() / 1000;
+  return visitDetailRows.filter(r => {
+    if (range && now - r.ts > range * 86400) return false;
+    if (!q) return true;
+    return [r.ip, r.device, r.browser, r.os, r.referer, r.visitor, r.user_agent]
+      .some(v => String(v || "").toLowerCase().includes(q));
+  });
+}
+
+function vdGroup(rows, key) {
+  const map = new Map();
+  rows.forEach(r => {
+    const name = String(r[key] || "未知").trim() || "未知";
+    map.set(name, (map.get(name) || 0) + 1);
+  });
+  return [...map.entries()].map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count).slice(0, 10);
+}
+
+function vdTrendData(rows) {
+  const map = new Map();
+  rows.forEach(r => {
+    const day = r.day || new Date(r.ts * 1000).toISOString().slice(0, 10);
+    if (!map.has(day)) map.set(day, { pv: 0, uvSet: new Set() });
+    const item = map.get(day);
+    item.pv++;
+    item.uvSet.add(r.visitor || r.ip || "");
+  });
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([day, item]) => ({ name: day.slice(5), count: item.pv, uv: item.uvSet.size }));
+}
+
+function vdBars(data, withUv = false) {
+  if (!data.length) return `<div class="vd-empty">暂无数据</div>`;
+  const max = Math.max(1, ...data.flatMap(x => withUv ? [x.count, x.uv] : [x.count]));
+  const total = data.reduce((sum, x) => sum + x.count, 0);
+  return `<div class="vc-chart" style="height:190px">${data.map((x, i) => {
+    const color = VD_COLORS[i % VD_COLORS.length];
+    const tip = withUv ? `${x.name}：访问 ${x.count}，访客 ${x.uv}` : `${x.name}：${x.count} 次（${(x.count / total * 100).toFixed(1)}%）`;
+    return `
+    <div class="vc-col" title="${esc(tip)}">
+      <div class="vc-bars">
+        <i class="vc-bar pv" style="left:calc(50% - ${withUv ? 9 : 4}px);background:${color};height:${Math.max(3, Math.round(x.count / max * 100))}%"></i>
+        ${withUv ? `<i class="vc-bar uv" style="height:${Math.max(3, Math.round(x.uv / max * 100))}%"></i>` : ""}
+      </div>
+      <span class="vc-label">${esc(String(x.name).slice(0, 10))}</span>
+      <span class="vc-n">${withUv ? `${x.count}/${x.uv}` : x.count}</span>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function vdLine(data, withUv = false) {
+  if (!data.length) return `<div class="vd-empty">暂无数据</div>`;
+  const w = 900, h = 190, padL = 36, padR = 12, padT = 12, padB = 28;
+  const max = Math.max(1, ...data.flatMap(x => withUv ? [x.count, x.uv] : [x.count]));
+  const n = data.length;
+  const px = i => padL + (n === 1 ? (w - padL - padR) / 2 : i * (w - padL - padR) / (n - 1));
+  const py = v => padT + (h - padT - padB) * (1 - v / max);
+  const points = key => data.map((d, i) => `${px(i).toFixed(1)},${py(d[key]).toFixed(1)}`).join(" ");
+  const grid = [0, .25, .5, .75, 1].map(f => {
+    const yy = padT + (h - padT - padB) * f;
+    return `<line x1="${padL}" y1="${yy}" x2="${w - padR}" y2="${yy}" stroke="var(--border)" stroke-width="1"></line>
+            <text x="${padL - 6}" y="${yy + 3}" text-anchor="end">${Math.round(max * (1 - f))}</text>`;
+  }).join("");
+  const step = Math.ceil(n / 8);
+  const labels = data.map((d, i) => (n <= 8 || i % step === 0 || i === n - 1)
+    ? `<text x="${px(i).toFixed(1)}" y="${h - 6}" text-anchor="middle">${esc(d.name)}</text>` : "").join("");
+  const dots = data.map((d, i) =>
+    `<circle cx="${px(i).toFixed(1)}" cy="${py(d.count).toFixed(1)}" r="2.5" fill="var(--accent)"><title>${esc(d.name)}：${d.count}</title></circle>`).join("");
+  return `<svg class="vd-line-svg" viewBox="0 0 ${w} ${h}">
+    ${grid}
+    <polyline points="${points("count")}" fill="none" stroke="var(--accent)" stroke-width="2"></polyline>
+    ${withUv ? `<polyline points="${points("uv")}" fill="none" stroke="var(--green)" stroke-width="2"></polyline>` : ""}
+    ${dots}${labels}
+  </svg>`;
+}
+
+function vdPie(data) {
+  if (!data.length) return `<div class="vd-empty">暂无数据</div>`;
+  const total = data.reduce((sum, x) => sum + x.count, 0);
+  let acc = 0;
+  const stops = data.map((x, i) => {
+    const start = acc / total * 100;
+    acc += x.count;
+    return `${VD_COLORS[i % VD_COLORS.length]} ${start.toFixed(2)}% ${(acc / total * 100).toFixed(2)}%`;
+  }).join(", ");
+  return `<div class="vd-pie-row">
+    <div class="vd-pie" style="background:conic-gradient(${stops})"></div>
+    <div class="vd-legend">${data.map((x, i) => `
+      <div><i style="background:${VD_COLORS[i % VD_COLORS.length]}"></i>
+        <span title="${esc(x.name)}">${esc(x.name)}</span>
+        <b>${x.count} · ${(x.count / total * 100).toFixed(1)}%</b>
+      </div>`).join("")}</div>
+  </div>`;
+}
+
+function vdTable(rows) {
+  if (!rows.length) return `<div class="vd-empty">没有匹配的访客记录</div>`;
+  const shown = rows.slice(0, 200);
+  return `<table class="vd-table">
+    <thead><tr><th>时间</th><th>IP</th><th>设备</th><th>浏览器</th><th>系统</th><th>来源</th><th>访客</th></tr></thead>
+    <tbody>${shown.map(r => `
+      <tr onclick="toggleVisitRow(this)" title="点击展开完整信息">
+        <td>${fmtTime(r.ts)}</td>
+        <td class="vd-ip">${esc(r.ip || "—")}</td>
+        <td>${esc(r.device || "—")}</td>
+        <td>${esc(r.browser || "—")}</td>
+        <td>${esc(r.os || "—")}</td>
+        <td title="${esc(r.referer)}">${r.referer ? esc(r.referer) : "直接访问"}</td>
+        <td>${esc((r.visitor || "").slice(0, 8))}</td>
+      </tr>
+      <tr class="vd-sub" style="display:none"><td colspan="7">
+        完整 User-Agent：${esc(r.user_agent || "无")}<br>
+        访问路径：${esc(r.path || "—")} · 日期：${esc(r.day || "—")} · 访客标识：${esc(r.visitor || "—")} · 记录 ID：${r.id}
+      </td></tr>`).join("")}</tbody>
+  </table>${rows.length > shown.length ? `<div class="inline-note" style="padding:8px 0;text-align:center">仅显示前 200 条，可用搜索缩小范围</div>` : ""}`;
+}
+
+function toggleVisitRow(tr) {
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains("vd-sub")) {
+    next.style.display = next.style.display === "none" ? "" : "none";
+  }
+}
+
+function renderVisitDetail() {
+  if (!visitDetailLoaded) return;
+  const rows = filteredVisitRows();
+  const tab = visitDetailTab;
+  const withUv = tab === "trend";
+  $("vd-tabs").querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll("#dlg-visit-detail .vd-modes button").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === visitDetailMode));
+  document.querySelector("#dlg-visit-detail .vd-modes").style.display = tab === "list" ? "none" : "flex";
+  const pieBtn = document.querySelector('#dlg-visit-detail .vd-modes button[data-mode="pie"]');
+  pieBtn.disabled = withUv;
+  pieBtn.style.opacity = withUv ? ".45" : "";
+
+  if (tab === "list") {
+    $("vd-chart").innerHTML = `<div class="vd-empty">下方表格展示全部匹配记录，点击行可展开完整信息</div>`;
+  } else {
+    const data = withUv ? vdTrendData(rows) : vdGroup(rows, tab);
+    const mode = (visitDetailMode === "pie" && withUv) ? "bar" : visitDetailMode;
+    $("vd-chart").innerHTML = mode === "pie" ? vdPie(data) : mode === "line" ? vdLine(data, withUv) : vdBars(data, withUv);
+  }
+  const pv = rows.length;
+  const uv = new Set(rows.map(r => r.visitor || r.ip)).size;
+  const ips = new Set(rows.map(r => r.ip).filter(Boolean)).size;
+  $("vd-summary").textContent = `匹配 ${pv} 条访问 · ${uv} 位访客 · ${ips} 个 IP（共载入 ${visitDetailRows.length} 条）`;
+  $("vd-table").innerHTML = vdTable(rows);
+}
+
+async function refreshNotifyLog() {
+  const box = $("notify-log-list");
+  if (!box) return;
+  try {
+    const { log } = await api("/api/notify/log?limit=50");
+    box.innerHTML = log.length ? log.map(l => {
+      const cl = CHANNEL_TYPE_LABEL[l.channel] || l.channel;
+      const clName = l.channel_name ? `${cl} · ${l.channel_name}` : cl;
+      return `
+      <div class="log-line">
+        <span class="lt">${fmtTime(l.ts)}</span>
+        <span class="cic">${CHANNEL_TYPE_ICON[l.channel] || "🔔"}</span>
+        <span class="lc">${esc(clName)}</span>
+        <span class="lo ${l.ok ? "ok" : "err"}">${l.ok ? "✓ 成功" : "✗ 失败"}</span>
+        <span class="lm" title="${esc(l.monitor_name)}">${esc(l.monitor_name || "—")}</span>
+        <span class="ld" title="${esc(l.detail)}">${esc(l.detail || "")}</span>
+      </div>`;
+    }).join("")
+      : `<p class="inline-note">还没有推送记录；监控触发推送或在渠道页点「测试此渠道」后，这里会显示最近 50 条。</p>`;
+  } catch (e) {
+    box.innerHTML = `<p class="inline-note" style="color:var(--red)">加载失败：${esc(e.message)}</p>`;
+  }
+}
+
+function fieldGet(ch, key) {
+  if (key === "to") return Array.isArray(ch.to) ? ch.to.join(", ") : (ch.to || "");
+  if (key === "headers") return (ch.headers && typeof ch.headers === "object") ? JSON.stringify(ch.headers, null, 2) : (ch.headers || "");
+  return ch[key] === undefined || ch[key] === null ? "" : String(ch[key]);
+}
+function fieldSet(ch, key, value) {
+  if (key === "to") ch.to = value.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
+  else if (key === "headers") ch.headers = value;   // 保存时再校验 JSON
+  else ch[key] = value;
+}
+
+function renderSettingsBody() {
+  const body = $("set-body");
+  if (setTab === "general") {
+    const unknown = settingsState.filter(c => !channelDef(c.type));
+    const known = settingsState.filter(c => channelDef(c.type));
+    // 已配置渠道列表：类型 + 关键配置摘要 + 启用状态
+    const chanRows = known.map(ch => {
+      const def = channelDef(ch.type);
+      const name = (ch.name || "").trim();
+      const sumField = def.fields.find(f => f.type !== "check" && (fieldGet(ch, f.key) || "").trim());
+      const summary = sumField ? fieldGet(ch, sumField.key).slice(0, 46) : "";
+      return `
+      <div class="chan-line">
+        <span class="cic">${CHANNEL_TYPE_ICON[ch.type] || "🔔"}</span>
+        <span class="ct">${esc(def.label)}${name ? ` · ${esc(name)}` : ""}</span>
+        <span class="sum" title="${esc(summary)}">${esc(summary) || "—"}</span>
+        <span class="st ${ch.disabled ? "off" : "on"}" title="点击切换启用/停用（需点「保存」才生效）"
+          onclick="toggleChanState(${ch._uid})">${ch.disabled ? "已停用" : "启用中"}</span>
+      </div>`;
+    }).join("");
+    body.innerHTML = `
+      <label>同一监控项推送冷却时间（秒）</label>
+      <input id="s-cooldown" type="number" min="0" value="${esc(String(settingsCooldown))}">
+      <p class="inline-note" style="margin-top:10px">
+        推送时机由每个监控项自己选择（编辑监控里的「推送策略」：状态变化 / 有库存时推送 / 仅失败 / 不推送）。
+        同一监控项两次推送之间至少间隔上面的冷却时间。
+      </p>
+      ${unknown.length ? `<p class="inline-note" style="color:var(--yellow);margin-top:10px">
+        另有 ${unknown.length} 个未知类型渠道（${esc(unknown.map(c => c.type).join("、"))}）不在可视化编辑范围内，保存时将原样保留。</p>` : ""}
+      <div class="set-section">
+        <div class="ss-head">已配置的通知渠道<span class="ss-cnt">${known.length} 个</span></div>
+        ${chanRows || `<p class="inline-note">还没有配置任何渠道；到上方各渠道页添加并保存后，这里会列出来。</p>`}
+      </div>
+      <div class="set-section">
+        <div class="ss-head">通知日志（最近 50 条）
+          <span class="spacer"></span>
+          <button class="log-refresh" onclick="refreshNotifyLog()">↻ 刷新</button>
+        </div>
+        <div id="notify-log-list"><p class="inline-note">加载中…</p></div>
+      </div>
+    `;
+    refreshNotifyLog();
+    return;
+  }
+  const def = channelDef(setTab);
+  const items = settingsState.filter(c => c.type === setTab);
+  body.innerHTML =
+    `<p class="inline-note">${def.desc}</p>` +
+    items.map(ch => chanCard(ch, def)).join("") +
+    `<div style="margin-top:10px"><button class="add-chan" onclick="addChannel('${setTab}')">＋ 添加${def.label}渠道</button></div>` +
+    (items.length ? "" : `<p class="inline-note" style="margin-top:8px">还没有${def.label}渠道，点上面按钮添加，保存后生效。</p>`);
+}
+
+/* 校验渠道带 * 的必填项是否都已正确填写：决定「测试此渠道」按钮是否可点 */
+function chanValid(ch, def) {
+  return def.fields.every(f => {
+    if (!f.required) return true;
+    const v = (fieldGet(ch, f.key) || "").trim();
+    if (!v) return false;
+    if (f.key === "to") return v.split(/[,，\s]+/).every(x => x.includes("@"));  // 收件邮箱
+    if (f.type === "number") return !isNaN(Number(v)) && Number(v) > 0;
+    return true;
+  });
+}
+const TEST_BTN_TIP = { ok: "发送一条测试消息", bad: "请先正确填写带 * 的必填项" };
+
+/* ---------------- 自定义推送标题 / 正文 + 实时预览 ---------------- */
+const NOTIFY_TEMPLATE_VARS = [
+  "{监控名}", "{分组}", "{状态}", "{结果}", "{库存变化}", "{连续失败}",
+  "{耗时}", "{时间}", "{厂商}", "{地区}", "{平台名}",
+];
+let lastTplField = null;   // 最后聚焦的模板输入框（点变量插入到这里）
+
+function notifySampleVars() {
+  const now = new Date();
+  const zh = {
+    "平台名": $("site-name").textContent || "网页监控平台",
+    "监控名": "华为云 2核2G 特价机库存",
+    "分组": "抢购",
+    "状态": "有货提醒",
+    "结果": "✅ 有货！剩余 30 台，今日 110/140，进度 78%",
+    "库存变化": "剩余：50 → 30",
+    "连续失败": "0",
+    "耗时": "1514ms",
+    "时间": now.toLocaleString("zh-CN", { hour12: false }),
+    "厂商": "华为云",
+    "地区": "华南-广州",
+  };
+  return { ...zh,
+    site: zh["平台名"], name: zh["监控名"], group: zh["分组"], status: zh["状态"],
+    message: zh["结果"], qty_change: zh["库存变化"], fail_count: zh["连续失败"],
+    duration: zh["耗时"], time: zh["时间"], vendor: zh["厂商"], region: zh["地区"],
+  };
+}
+
+function renderTpl(tpl, vars) {
+  return String(tpl || "").replace(/\{([^{}\n]+)\}/g, (m, k) => {
+    const key = k.trim();
+    return key in vars ? String(vars[key]) : m;
+  });
+}
+
+/* 平台默认推送样式（与 scheduler._maybe_notify 的默认拼装一致，供预览对照） */
+function notifyDefaultText(vars) {
+  return {
+    title: `【网页监控】${vars["监控名"]} ${vars["状态"]}`,
+    content: [
+      `监控项：${vars["监控名"]}`,
+      `状态：${vars["结果"]}`,
+      vars["库存变化"],
+      `耗时：${vars["耗时"]}`,
+      `时间：${vars["时间"]}`,
+    ].filter(Boolean).join("\n"),
+  };
+}
+
+function notifyPreviewHtml(ch) {
+  const vars = notifySampleVars();
+  const titleTpl = (ch.title_template || "").trim();
+  const contentTpl = (ch.content_template || "").trim();
+  const def = notifyDefaultText(vars);
+  const title = titleTpl ? renderTpl(titleTpl, vars) : def.title;
+  const content = contentTpl
+    ? renderTpl(contentTpl, vars).split("\n").filter(l => l.trim()).join("\n")
+    : def.content;
+  return `
+    <div class="np-bubble">
+      <div class="np-badge">${titleTpl || contentTpl ? "自定义模板" : "平台默认"}</div>
+      <b class="np-t">${esc(title)}</b>
+      <pre class="np-c">${esc(content)}</pre>
+    </div>`;
+}
+
+/* 实时刷新某个渠道卡片的推送预览（输入时逐字更新，不整卡重绘以免丢焦点） */
+function updateNotifyPreview(card, ch) {
+  const box = card && card.querySelector(".ntpl-preview");
+  if (!box) return;
+  box.innerHTML = notifyPreviewHtml(ch);
+  const head = card.querySelector(".ntpl-mode");
+  if (head) {
+    head.textContent = (ch.title_template || "").trim() || (ch.content_template || "").trim()
+      ? "已自定义" : "使用默认";
+  }
+}
+
+/* 点变量标签：插入到该卡片里最后聚焦的标题/正文输入框光标处 */
+function insertTplVar(el) {
+  const card = el.closest(".chan-card");
+  const field = lastTplField;
+  if (!card || !field || !card.contains(field)) return;
+  const v = el.dataset.var;
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? start;
+  field.value = field.value.slice(0, start) + v + field.value.slice(end);
+  field.focus();
+  field.selectionStart = field.selectionEnd = start + v.length;
+  field.dispatchEvent(new Event("input", { bubbles: true }));  // 走统一写回 + 预览刷新
+}
+
+function chanCard(ch, def) {
+  const ok = chanValid(ch, def);
+  const fields = def.fields.map(f => {
+    const v = fieldGet(ch, f.key);
+    if (f.type === "check") return `
+      <label class="switch full" style="margin-top:2px">
+        <input type="checkbox" data-uid="${ch._uid}" data-key="${f.key}" data-ftype="check" ${v && v !== "false" ? "checked" : ""}>
+        ${f.label}
+      </label>`;
+    if (f.type === "textarea") return `
+      <div class="full"><label>${f.label}</label>
+      <textarea class="small-area" style="min-height:52px" data-uid="${ch._uid}" data-key="${f.key}" placeholder="${esc(f.ph || "")}">${esc(v)}</textarea></div>`;
+    return `
+      <div><label>${f.label}</label>
+      <input data-uid="${ch._uid}" data-key="${f.key}"
+        type="${f.type === "number" ? "number" : (f.type === "password" ? "password" : "text")}"
+        value="${esc(v)}" placeholder="${esc(f.ph || "")}"></div>`;
+  }).join("");
+  return `
+  <div class="chan-card">
+    <div class="head2">
+      <span class="chan-ic" title="${esc(def.label)}">${CHANNEL_TYPE_ICON[ch.type] || "🔔"}</span>
+      <input class="chan-name" placeholder="通知名称（区分多个同类渠道）" maxlength="30"
+        data-uid="${ch._uid}" data-key="name" value="${esc(ch.name || "")}">
+      <label class="switch">
+        <input type="checkbox" data-uid="${ch._uid}" data-key="disabled" data-ftype="enabled" ${ch.disabled ? "" : "checked"}>
+        ${ch.disabled ? "已停用" : "启用中"}
+      </label>
+      <span class="spacer"></span>
+      <button class="test-btn" ${ok ? "" : "disabled"} title="${TEST_BTN_TIP[ok ? "ok" : "bad"]}"
+        onclick="testChannel(${ch._uid})">▶ 测试此渠道</button>
+      <button class="danger" onclick="removeChannel(${ch._uid})">删除</button>
+    </div>
+    <div class="grid2">${fields}</div>
+    <div class="ntpl">
+      <div class="ntpl-head">🏷 自定义推送标题 / 正文
+        <span class="ntpl-mode">${(ch.title_template || "").trim() || (ch.content_template || "").trim() ? "已自定义" : "使用默认"}</span>
+      </div>
+      <input class="ntpl-title" data-uid="${ch._uid}" data-key="title_template"
+        placeholder="留空 = 默认标题：【网页监控】{监控名} {状态}" value="${esc(ch.title_template || "")}">
+      <textarea class="ntpl-content small-area" data-uid="${ch._uid}" data-key="content_template"
+        style="min-height:74px" placeholder="留空 = 默认正文；每行一条，渲染后自动去掉空行">${esc(ch.content_template || "")}</textarea>
+      <div class="ntpl-vars">${NOTIFY_TEMPLATE_VARS.map(v =>
+        `<span class="ntpl-var" data-var="${v}" title="点击插入到光标位置" onclick="insertTplVar(this)">${v}</span>`).join("")}</div>
+      <div class="ntpl-preview">${notifyPreviewHtml(ch)}</div>
+      <p class="inline-note" style="margin-top:6px">预览用示例数据实时渲染，与实际推送一致（「测试此渠道」也会按此模板发送）；留空使用平台默认。</p>
+    </div>
+  </div>`;
+}
+
+// 表单输入实时写回 settingsState（事件委托）
+document.addEventListener("DOMContentLoaded", () => {
+  const handler = e => {
+    const t = e.target;
+    if (!t.dataset || !t.dataset.uid) return;
+    const ch = settingsState.find(c => c._uid === Number(t.dataset.uid));
+    if (!ch) return;
+    const key = t.dataset.key;
+    if (t.dataset.ftype === "enabled") {
+      ch.disabled = !t.checked;
+      renderSettingsBody();  // 重绘以更新「启用中/已停用」文案
+    } else if (t.dataset.ftype === "check") {
+      ch[key] = t.checked;
+    } else {
+      fieldSet(ch, key, t.value);  // to/headers 等字段有特殊转换逻辑
+      // 自定义推送模板：实时刷新该卡片的效果预览
+      if (key === "title_template" || key === "content_template") {
+        lastTplField = t;   // 正在输入的模板框即为插入目标
+        updateNotifyPreview(t.closest(".chan-card"), ch);
+      }
+    }
+    // 必填项变化时实时解锁 / 禁用「测试此渠道」按钮
+    const card = t.closest(".chan-card");
+    const testBtn = card && card.querySelector(".test-btn");
+    if (testBtn) {
+      const def = channelDef(ch.type);
+      const ok = def ? chanValid(ch, def) : true;
+      testBtn.disabled = !ok;
+      testBtn.title = TEST_BTN_TIP[ok ? "ok" : "bad"];
+    }
+  };
+  $("set-body").addEventListener("input", handler);
+  $("set-body").addEventListener("change", handler);
+  // 记录最后聚焦的模板输入框：点「变量」标签插入到这里
+  // focusin 覆盖键盘 Tab / 正常聚焦；mousedown 兜底覆盖个别环境不派发焦点事件的情况
+  const rememberTplField = e => {
+    const t = e.target;
+    if (t.dataset && (t.dataset.key === "title_template" || t.dataset.key === "content_template")) {
+      lastTplField = t;
+    }
+  };
+  $("set-body").addEventListener("focusin", rememberTplField);
+  $("set-body").addEventListener("mousedown", rememberTplField);
+});
+
+function addChannel(type) {
+  const ch = { type, _uid: setUid++, ...(CHANNEL_DEFAULTS[type] || {}) };
+  // 自动生成默认通知名：类型英文 + 序号（跳过已被占用的序号），仍可手动改
+  const used = new Set(settingsState.filter(c => c.type === type)
+    .map(c => (c.name || "").trim()));
+  let n = 1;
+  while (used.has(`${type}-${n}`)) n++;
+  ch.name = `${type}-${n}`;
+  settingsState.push(ch);
+  renderSettingsTabs();
+  renderSettingsBody();
+}
+
+function removeChannel(uid) {
+  settingsState = settingsState.filter(c => c._uid !== uid);
+  renderSettingsTabs();
+  renderSettingsBody();
+}
+
+function serializeChannel(ch) {
+  const out = {};
+  for (const [k, v] of Object.entries(ch)) {
+    if (k === "_uid" || k === "_badHeaders") continue;
+    if (v === "" || v === undefined || v === null) continue;
+    if (Array.isArray(v) && !v.length) continue;
+    out[k] = v;
+  }
+  if (typeof out.headers === "string") {
+    if (out.headers.trim()) {
+      try { out.headers = JSON.parse(out.headers); }
+      catch { throw new Error("Webhook 渠道的「额外请求头」不是合法 JSON"); }
+    } else delete out.headers;
+  }
+  if (out.disabled === false) delete out.disabled;
+  return out;
+}
+
+async function testChannel(uid) {
+  const ch = settingsState.find(c => c._uid === uid);
+  if (!ch) return;
+  try {
+    const obj = serializeChannel(ch);
+    delete obj.disabled;  // 停用中的渠道也允许单独测试
+    const { sent } = await api("/api/settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channels: [obj] }),
+    });
+    toast(sent.length ? `✅ 测试消息已通过该渠道发出` : "❌ 发送失败，请检查配置（详见服务端日志）", !sent.length);
+  } catch (e) { toast(e.message, true); }
+}
+
+async function saveSettings() {
+  for (const ch of settingsState) {
+    if (ch.disabled) continue;
+    const def = channelDef(ch.type);
+    if (!def) continue;  // 未知类型原样保留
+    for (const f of def.fields) {
+      if (f.required && !fieldGet(ch, f.key).trim()) {
+        switchSetTab(ch.type);
+        toast(`${def.label}渠道有必填项未填：${f.label.replace(/ \*$/, "")}`, true);
+        return;
+      }
+    }
+  }
+  let channels;
+  try { channels = settingsState.map(serializeChannel); }
+  catch (e) { toast(e.message, true); return; }
+  try {
+    await api("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channels,
+        notify: { cooldown_seconds: Number(($("s-cooldown") || {}).value ?? settingsCooldown) },
+      }),
+    });
+    toast("通知设置已保存");
+    closeDialog("dlg-settings");
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ---------------- 启动 ---------------- */
+
+function closeDialog(id) { $(id).close(); }
+
+/* ---------------- 自定义确认弹窗（代替浏览器原生 confirm） ---------------- */
+
+let confirmResolve = null;
+function uiConfirm(message, okText = "确定") {
+  return new Promise(resolve => {
+    confirmResolve = resolve;
+    $("confirm-msg").textContent = message;
+    $("confirm-ok").textContent = okText;
+    $("dlg-confirm").showModal();
+  });
+}
+function resolveConfirm(result) {
+  const r = confirmResolve;
+  confirmResolve = null;
+  $("dlg-confirm").close();
+  if (r) r(result);
+}
+// Esc / 点背景关闭时按“取消”处理，避免 Promise 悬空
+$("dlg-confirm").addEventListener("close", () => {
+  if (confirmResolve) { const r = confirmResolve; confirmResolve = null; r(false); }
+});
+
+/* ---------------- 深浅主题切换 ---------------- */
+
+function applyTheme(theme) {
+  document.documentElement.classList.toggle("light", theme === "light");
+  const btn = $("theme-btn");
+  if (btn) {
+    // 按钮显示“点击后将切到”的模式
+    btn.textContent = theme === "light" ? "🌙 深色" : "☀️ 浅色";
+    btn.title = theme === "light" ? "切换到深色主题" : "切换到浅色主题";
+  }
+  localStorage.setItem("wm-theme", theme);
+}
+function toggleTheme() {
+  applyTheme((localStorage.getItem("wm-theme") || "dark") === "light" ? "dark" : "light");
+}
+
+/* ---------------- 分组标签拖动排序 ---------------- */
+let groupDropSaving = false;
+
+document.addEventListener("dragstart", e => {
+  const target = e.target instanceof Element ? e.target : null;
+  const chip = target ? target.closest("#filterbar button[data-gname]") : null;
+  if (!chip) return;
+  dragGroupName = chip.dataset.gname;
+  draggingGroups = true;
+  chip.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", dragGroupName); } catch { /* 忽略 */ }
+});
+document.addEventListener("dragover", e => {
+  const chip = e.target instanceof Element
+    ? e.target.closest("#filterbar button[data-gname]") : null;
+  if (!chip || dragGroupName === null) return;
+  const src = document.querySelector("#filterbar button.dragging");
+  if (!src || src === chip) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  document.querySelectorAll("#filterbar button.drag-over").forEach(c => c.classList.remove("drag-over"));
+  chip.classList.add("drag-over");
+});
+document.addEventListener("dragleave", e => {
+  const chip = e.target instanceof Element
+    ? e.target.closest("#filterbar button[data-gname]") : null;
+  if (chip) chip.classList.remove("drag-over");
+});
+document.addEventListener("drop", e => {
+  const chip = e.target instanceof Element
+    ? e.target.closest("#filterbar button[data-gname]") : null;
+  const src = document.querySelector("#filterbar button.dragging");
+  if (!chip || !src || src === chip) return;
+  e.preventDefault();
+  const rect = chip.getBoundingClientRect();
+  src.parentNode.insertBefore(src, e.clientX > rect.left + rect.width / 2 ? chip.nextSibling : chip);
+  const names = [...document.querySelectorAll("#filterbar button[data-gname]")]
+    .map(b => b.dataset.gname);
+  groupDropSaving = true;
+  api("/api/groups/order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ groups: names }),
+  }).then(() => {
+    draggingGroups = false; groupDropSaving = false;
+    return loadAll();
+  }).catch(err => {
+    draggingGroups = false; groupDropSaving = false;
+    toast(err.message, true);
+    renderFilterBar();
+  });
+});
+document.addEventListener("dragend", () => {
+  document.querySelectorAll("#filterbar button.dragging, #filterbar button.drag-over")
+    .forEach(c => c.classList.remove("dragging", "drag-over"));
+  dragGroupName = null;
+  if (!groupDropSaving) { draggingGroups = false; renderFilterBar(); }
+});
+
+/* ---------------- 卡片拖动排序（写入数据库，公开看板同步） ---------------- */
+let dropSaving = false;
+
+document.addEventListener("dragstart", e => {
+  const target = e.target instanceof Element ? e.target : null;
+  const card = target ? target.closest("#list .card") : null;
+  if (!card || target.closest("a, button, input, textarea, select, label")) return;
+  dragMid = Number(card.dataset.mid);
+  draggingCards = true;
+  card.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", String(dragMid)); } catch { /* 忽略 */ }
+});
+document.addEventListener("dragover", e => {
+  const card = e.target instanceof Element ? e.target.closest("#list .card") : null;
+  if (!card || dragMid === null) return;
+  const src = document.querySelector("#list .card.dragging");
+  if (!src || src === card || src.closest(".grid") !== card.closest(".grid")) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  document.querySelectorAll("#list .card.drag-over").forEach(c => c.classList.remove("drag-over"));
+  card.classList.add("drag-over");
+});
+document.addEventListener("dragleave", e => {
+  const card = e.target instanceof Element ? e.target.closest("#list .card") : null;
+  if (card) card.classList.remove("drag-over");
+});
+document.addEventListener("drop", e => {
+  const card = e.target instanceof Element ? e.target.closest("#list .card") : null;
+  const src = document.querySelector("#list .card.dragging");
+  if (!card || !src || src === card) return;
+  const grid = card.closest(".grid");
+  if (!grid || src.closest(".grid") !== grid) return;
+  e.preventDefault();
+  const rect = card.getBoundingClientRect();
+  grid.insertBefore(src, e.clientX > rect.left + rect.width / 2 ? card.nextSibling : card);
+  const ids = [...grid.querySelectorAll(".card")].map(c => Number(c.dataset.mid));
+  dropSaving = true;
+  api("/api/monitors/order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  }).then(() => {
+    draggingCards = false; dropSaving = false;
+    return loadAll();
+  }).catch(err => {
+    draggingCards = false; dropSaving = false;
+    toast(err.message, true);
+    loadAll().catch(() => {});
+  });
+});
+document.addEventListener("dragend", () => {
+  document.querySelectorAll("#list .card.dragging, #list .card.drag-over")
+    .forEach(c => c.classList.remove("dragging", "drag-over"));
+  dragMid = null;
+  if (!dropSaving) draggingCards = false;
+});
+
+applyTheme(localStorage.getItem("wm-theme") || "dark");
+
+// 先确认登录状态：未登录只显示登录门，登录后才拉取数据
+checkAuth().then(ok => {
+  if (ok) loadAll().catch(e => toast("加载失败：" + e.message, true));
+});
+setInterval(() => {
+  if (!me.authenticated || draggingGroups) return;
+  if (!document.querySelector("dialog[open]")) loadAll().catch(() => {});
+}, 5000);
+</script>
+</body>
+</html>

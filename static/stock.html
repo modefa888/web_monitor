@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>服务器存量看板 · 网页监控平台</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="mask-icon" href="/favicon.svg" color="#4c8dff">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0f1419;
+  --panel: #171d24;
+  --panel-2: #1e2630;
+  --border: #2a3441;
+  --text: #d8e1ea;
+  --text-dim: #8695a6;
+  --accent: #4c8dff;
+  --green: #2ecc71;
+  --red: #e74c3c;
+  --yellow: #f0b429;
+  --purple: #b18cff;
+  --gray: #5c6b7a;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+html { scrollbar-gutter: stable; }
+html.modal-open, body.modal-open { overflow: hidden; }
+:root.light {
+  color-scheme: light;
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --panel-2: #eaeff5;
+  --border: #d3dce6;
+  --text: #243342;
+  --text-dim: #647687;
+  --accent: #2f6fd6;
+  --green: #1e9e56;
+  --red: #d44a3a;
+  --yellow: #c98a00;
+  --purple: #7a4fd0;
+  --gray: #9aa8b5;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+/* 只读看板：禁止拖拽/双击选中文字，避免出现整片蓝色选区 */
+body { user-select: none; -webkit-user-select: none; }
+/* 始终预留竖向滚动条的位置，切换分组 tab 时页面不会左右抖动 */
+html { scrollbar-gutter: stable; }
+@supports not (scrollbar-gutter: stable) {
+  html { overflow-y: scroll; }
+}
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+button {
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 13px;
+}
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 24px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 20;
+}
+header h1 {
+  margin: 0; font-size: 16.5px; white-space: nowrap; letter-spacing: .3px;
+  display: flex; align-items: center; gap: 9px;
+}
+/* 标题图标：圆角小徽标，突出看板入口 */
+header h1 .logo {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 27px; height: 27px; border-radius: 7px; font-size: 15px;
+  background: linear-gradient(135deg, rgba(76, 141, 255, .28), rgba(76, 141, 255, .08));
+  border: 1px solid rgba(76, 141, 255, .4);
+}
+header .divider { width: 1px; height: 20px; background: var(--border); flex: none; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+/* 概览胶囊：语义着色（总数=蓝 / 有货·正常=绿 / 无货·异常=红 / 待检=黄），与卡片徽章同风格 */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+  padding: 2.5px 11px; font-size: 12px; color: var(--text-dim);
+}
+.chip b { color: var(--text); font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.chip .cdot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--gray); }
+.chip.info { border-color: rgba(76, 141, 255, .45); background: linear-gradient(135deg, rgba(76, 141, 255, .16), rgba(76, 141, 255, .04)); }
+.chip.info .cdot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.chip.info b { color: var(--accent); }
+.chip.good { border-color: rgba(46, 204, 113, .45); background: linear-gradient(135deg, rgba(46, 204, 113, .16), rgba(46, 204, 113, .04)); }
+.chip.good .cdot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.chip.good b { color: var(--green); }
+.chip.bad { border-color: rgba(231, 76, 60, .45); background: linear-gradient(135deg, rgba(231, 76, 60, .14), rgba(231, 76, 60, .04)); }
+.chip.bad .cdot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.chip.bad b { color: var(--red); }
+.chip.warn { border-color: rgba(240, 180, 41, .45); background: linear-gradient(135deg, rgba(240, 180, 41, .16), rgba(240, 180, 41, .04)); }
+.chip.warn .cdot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+.chip.warn b { color: var(--yellow); }
+.spacer { flex: 1; }
+/* 数据更新时间：绿点呼吸灯，示意看板仍在自动刷新 */
+.updated { color: var(--text-dim); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.updated .live {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--green); box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+
+main { padding: 20px 24px 60px; max-width: 1200px; margin: 0 auto; }
+/* 看板页脚：后台「网站设置」里配置的备注文字 */
+.site-footer {
+  text-align: center; padding: 18px 24px 26px; color: var(--text-dim); font-size: 12px;
+}
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  align-items: start;   /* 详情折叠后卡片按自身高度收拢，不被同行展开的卡片拉高留白 */
+}
+/* 分组标题：点击展开 / 收起该组卡片 */
+.group-head {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+  margin: 20px 0 8px; font-size: 14px; font-weight: 600; color: var(--text);
+  transition: color .15s;
+}
+.group-head:first-child { margin-top: 2px; }
+.group-head:hover { color: var(--accent); }
+.group-head .arrow { transition: transform .15s; font-size: 11px; color: var(--text-dim); }
+.group-head.collapsed .arrow { transform: rotate(-90deg); }
+.group-head .cnt { font-weight: 400; font-size: 12px; color: var(--text-dim); }
+.empty { text-align: center; color: var(--text-dim); padding: 80px 0; }
+/* 数据接口被停用时的占位卡片：居中卡片 + 图标，风格与看板一致 */
+.disabled-wrap { display: flex; justify-content: center; padding: 56px 12px; }
+.disabled-card {
+  text-align: center; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; padding: 32px 46px; max-width: 480px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+}
+.disabled-card .dc-icon {
+  width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 30px;
+  background: rgba(240, 180, 41, .14); border: 1px solid rgba(240, 180, 41, .4);
+}
+.disabled-card .dc-title { font-size: 17px; font-weight: 700; margin: 0 0 8px; }
+.disabled-card .dc-text { margin: 0; color: var(--text-dim); font-size: 13px; line-height: 1.8; }
+
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.card.stock-yes { border-left: 3px solid var(--green); }
+.card.stock-no  { border-left: 3px solid var(--red); }
+.card .top { display: flex; align-items: center; gap: 9px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.fail { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.dot.pending { background: var(--accent); }
+.dot.spin { animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.card .name { font-weight: 600; font-size: 15px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge { font-size: 11px; border-radius: 4px; padding: 1px 7px; border: 1px solid var(--border); color: var(--text-dim); flex: none; }
+.badge.red { color: var(--red); border-color: var(--red); }
+
+/* 有货 / 无货 状态胶囊 */
+.badge.badge-yes,
+.badge.badge-no {
+  border-radius: 999px; padding: 2px 11px; font-weight: 600; font-size: 11.5px;
+  display: inline-flex; align-items: center; gap: 5px; letter-spacing: .2px;
+}
+.badge.badge-yes::before,
+.badge.badge-no::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none;
+}
+.badge.badge-yes {
+  color: var(--green);
+  border-color: rgba(46, 204, 113, .55);
+  background: linear-gradient(135deg, rgba(46, 204, 113, .22), rgba(46, 204, 113, .06));
+  box-shadow: 0 0 0 1px rgba(46, 204, 113, .08), 0 0 14px rgba(46, 204, 113, .22);
+}
+.badge.badge-yes::before { background: var(--green); box-shadow: 0 0 7px var(--green); }
+.badge.badge-no {
+  color: var(--red);
+  border-color: rgba(231, 76, 60, .5);
+  background: linear-gradient(135deg, rgba(231, 76, 60, .18), rgba(231, 76, 60, .05));
+  box-shadow: 0 0 0 1px rgba(231, 76, 60, .06), 0 0 12px rgba(231, 76, 60, .16);
+}
+.badge.badge-no::before { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.stock-line {
+  font-size: 15px; font-weight: 600; line-height: 1.5; min-height: 46px; word-break: break-all;
+}
+.stock-line.fail { color: var(--red); }
+.stock-line.ok { color: var(--text); }
+.spec-line {
+  display: flex; align-items: center; gap: 8px; min-height: 52px;
+  background: linear-gradient(135deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 9px; padding: 6px 11px;
+  font-size: 13px; line-height: 1.55; color: var(--text);
+  word-break: break-word;
+}
+.spec-line .spec-tag {
+  flex: none; font-size: 11px; color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px;
+}
+.spec-line .spec-text { flex: 1; min-width: 0; }
+.spec-line em {
+  font-style: normal; font-weight: 600; padding: 0 3px; border-radius: 4px;
+  background: rgba(255, 255, 255, .04);
+}
+.spec-line .hl-cpu { color: var(--accent); background: rgba(76, 141, 255, .14); }
+.spec-line .hl-net { color: var(--purple); background: rgba(177, 140, 255, .14); }
+.spec-line .hl-disk { color: var(--green); background: rgba(46, 204, 113, .13); }
+.spec-line .hl-flow { color: var(--yellow); background: rgba(240, 180, 41, .14); }
+.spec-line .hl-time { color: var(--red); background: rgba(231, 76, 60, .13); }
+.stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 52px; gap: 6px; align-content: start;
+}
+.stats .item {
+  position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  background: linear-gradient(150deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--border); border-radius: 9px; padding: 5px 10px 5px 14px;
+  overflow: hidden; transition: border-color .18s, transform .18s, box-shadow .18s;
+}
+.stats .item::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--tile-accent, var(--border)); opacity: .9;
+}
+.stats .item:hover {
+  border-color: var(--tile-accent, var(--accent));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+}
+.stats .item .k { color: var(--text-dim); font-size: 11px; line-height: 1.25; letter-spacing: .2px; }
+.stats .item b { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding-top: 8px; border-top: 1px dashed var(--border);
+}
+.meta .pill,
+#meta-pop .pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 1px 9px; font-size: 11px; color: var(--text-dim);
+}
+/* 详情悬浮框 */
+#meta-pop {
+  position: fixed; z-index: 55; display: flex; flex-wrap: wrap; gap: 6px;
+  max-width: min(360px, 92vw); padding: 10px;
+  background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+}
+.actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: auto; }
+/* 详情默认折叠，点「详情」再展开监控时段/厂商/价格等标签 */
+.meta-toggle {
+  margin-right: auto; font-size: 11.5px; padding: 2px 10px; border-radius: 999px;
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+}
+.meta-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.meta .pill .ic,
+#meta-pop .pill .ic { font-size: 11px; }
+.meta .pill b,
+#meta-pop .pill b { font-weight: 600; }
+.b-accent { color: var(--accent); }
+.b-purple { color: var(--purple); }
+.b-yellow { color: var(--yellow); }
+.b-green  { color: var(--green); }
+.b-red    { color: var(--red); }
+.muted { color: var(--text-dim); }
+a { color: var(--accent); }
+.chart-btn { font-size: 12px; padding: 2px 11px; border-radius: 999px; }
+.site-btn {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  font-weight: 600; text-decoration: none; padding: 3px 13px;
+}
+.site-btn:hover { filter: brightness(1.12); border-color: var(--accent); color: #fff; }
+#dlg-trend {
+  /* 强制在视口内水平 + 垂直居中 */
+  position: fixed; inset: 0; margin: auto; height: fit-content;
+  max-height: min(88vh, 780px); overflow: auto;
+  width: min(900px, 94vw); max-width: 94vw; padding: 0;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--panel); color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,.45);
+}
+#dlg-trend::backdrop { background: rgba(0,0,0,.55); }
+#dlg-trend .head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px; border-bottom: 1px solid var(--border);
+}
+#dlg-trend .head h2 { font-size: 15px; margin: 0; flex: 1; }
+#trend-body { padding: 14px 18px 18px; min-height: 300px; }
+#trend-chart { width: 100%; height: auto; display: block; }
+/* 弹窗打开时锁定背景滚动，避免页面跟着滚 */
+body:has(dialog[open]) { overflow: hidden; }
+.trend-stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px; margin: 0 0 10px;
+}
+.trend-stats .ts {
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 7px 10px; min-width: 0;
+}
+.trend-stats .ts .k { display: block; font-size: 10.5px; color: var(--text-dim); }
+.trend-stats .ts b {
+  display: block; font-size: 15px; line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.trend-stats .ts .d { font-size: 10.5px; color: var(--text-dim); }
+#trend-wrap {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 6px 4px 2px;
+}
+#trend-meta {
+  display: flex; flex-wrap: wrap; gap: 5px 16px;
+  margin: 10px 2px 0; font-size: 11.5px; color: var(--text-dim);
+}
+#trend-meta b { color: var(--text); font-weight: 600; }
+@media (max-width: 640px) {
+  .trend-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* 手机窄屏：压缩头部与留白，卡片改单列（375px 下 340px 最小列宽会横向溢出） */
+@media (max-width: 640px) {  header { padding: 8px 12px; gap: 7px 9px; }
+  header h1 { font-size: 15px; }
+  header h1 .logo { width: 24px; height: 24px; font-size: 13px; border-radius: 6px; }
+  header .divider { display: none; }
+  /* 头部重排：标题 / 统计胶囊 + 主题切换（右对齐）/ 更新时间独占一行 */
+  header .chips { order: 2; }
+  header #theme-btn { order: 3; margin-left: auto; }
+  header .updated { order: 4; }
+  .chips { gap: 6px; }
+  .chip { padding: 2px 9px; font-size: 11.5px; }
+  .chip b { font-size: 12px; }
+  .updated { font-size: 11px; }
+  #theme-btn { padding: 4px 10px; font-size: 12px; }
+  main { padding: 12px 12px 46px; }
+  .grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .card { padding: 12px 13px; gap: 9px; }
+  .card .name { font-size: 14px; }
+  .group-head { margin: 14px 0 6px; }
+  .site-footer { padding: 12px 12px 22px; }
+  .toast { right: 12px; left: 12px; max-width: none; }
+  /* 排序菜单改底部弹出面板：下拉浮层在手机上又高又挡卡片，底部面板是常规交互 */
+  .sort-menu {
+    left: 0 !important; right: 0 !important;
+    top: auto !important; bottom: 0 !important;
+    width: auto; min-width: 0;
+    max-height: 72vh;
+    border-radius: 14px 14px 0 0;
+    border-left: none; border-right: none; border-bottom: none;
+    padding: 6px 10px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -12px 34px rgba(0, 0, 0, .35);
+    animation: sheet-up .18s ease;
+  }
+  .sort-menu::before {
+    content: "排序方式";
+    display: block; text-align: center;
+    font-size: 12px; color: var(--text-dim); padding: 4px 0 6px;
+  }
+  .sort-menu button { padding: 10px 14px; font-size: 13.5px; border-radius: 8px; }
+  .sort-menu button.active::after { content: "✓"; float: right; margin-left: 10px; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(24%); opacity: .5; }
+  to { transform: none; opacity: 1; }
+}
+#trend-tip {
+  position: absolute; z-index: 20; display: none; pointer-events: none;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; font-size: 12px; line-height: 1.7; max-width: 280px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+#trend-tip b { color: var(--accent); }
+.toast {
+  position: fixed; right: 20px; bottom: 20px; z-index: 99;
+  background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 10px 16px; max-width: 420px; font-size: 13px;
+  opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: none; }
+.toast.error { border-left-color: var(--red); }
+
+/* 顶部分类胶囊（标题与卡片之间） */
+.tabs-bar { position: relative; padding: 14px 24px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.sort-wrap { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); z-index: 12; }
+.sort-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+}
+.sort-btn:hover, .sort-btn[aria-expanded="true"] { border-color: var(--accent); }
+.sort-btn .caret { font-size: 10px; color: var(--text-dim); }
+.sort-menu {
+  position: fixed; left: 0; top: 0; z-index: 999;
+  min-width: 156px; max-height: 300px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+}
+.sort-menu[hidden] { display: none !important; }
+.sort-menu button {
+  border: none; background: transparent; color: var(--text-dim);
+  text-align: left; padding: 6px 10px; border-radius: 6px; font-size: 12px;
+  white-space: nowrap;
+}
+.sort-menu button:hover { background: var(--panel-2); color: var(--text); }
+.sort-menu button.active { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+.sort-menu button.active::after { content: "✓"; float: right; margin-left: 10px; }
+@media (max-width: 900px) {
+  .tabs-bar { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .sort-wrap { position: static; transform: none; }
+}
+.tabs button {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--panel); color: var(--text-dim);
+  padding: 3px 12px; font-size: 12px; line-height: 1.4; white-space: nowrap;
+}
+.tabs button:hover { border-color: var(--accent); color: var(--text); }
+/* 选中态与后台分组标签一致：蓝色渐变 + 光晕 */
+.tabs button.active {
+  background: linear-gradient(135deg, var(--accent), #6aa6ff);
+  border-color: var(--accent); color: #fff; font-weight: 600;
+  box-shadow: 0 2px 12px rgba(76, 141, 255, .45), inset 0 0 0 1px rgba(255, 255, 255, .14);
+}
+/* 分组图标独立成节点：emoji 自带字形基线不稳，flex 垂直居中后再微调上移对齐文字 */
+.tabs button .t-ic { font-size: 12.5px; line-height: 1; transform: translateY(-.5px); }
+.tabs button b { font-weight: 500; opacity: .75; font-size: 11px; }
+/* 手机：排序按钮并入分组标签行尾，只显示 ⇅ 图标（块置底以覆盖上面的 900px 规则） */
+@media (max-width: 640px) {
+  .tabs-bar { padding: 10px 12px; gap: 8px; }
+  .tabs-bar { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .tabs { justify-content: flex-start; }
+  .sort-wrap { margin-left: 2px; }
+  /* 与分组胶囊同款外观：同内边距 / 字号 / 图标尺寸，融为一体 */
+  .sort-btn {
+    padding: 3px 12px; gap: 5px;
+    font-size: 12px; line-height: 1.4;
+  }
+  #sort-label { font-size: 0; }
+  .sort-btn::before {
+    content: "⇅"; font-size: 12.5px;
+    transform: translateY(-.5px); color: var(--text-dim);
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="logo">🖥</span><span id="stock-title">服务器存量看板</span></h1>
+  <div class="divider"></div>
+  <div class="chips" id="chips"></div>
+  <div class="spacer"></div>
+  <span class="updated" id="updated"></span>
+  <button id="theme-btn" onclick="toggleTheme()" title="切换深浅色主题">☀️ 浅色</button>
+</header>
+
+<div class="tabs-bar">
+  <div class="tabs" id="filterbar" hidden></div>
+  <div class="sort-wrap" id="sort-wrap">
+    <button type="button" class="sort-btn" id="sort-btn" onclick="toggleSortMenu(event)"
+            aria-haspopup="listbox" aria-expanded="false" title="排序方式">
+      <span id="sort-label">⇅ 默认排序</span><span class="caret">▾</span>
+    </button>
+  </div>
+</div>
+<div class="sort-menu" id="sort-menu" role="listbox" hidden></div>
+
+<main>
+  <div id="list"></div>
+  <div class="empty" id="empty" hidden>
+    暂没有启用中的采集任务，或数据还在等待第一轮采集。
+  </div>
+  <div class="empty" id="err" hidden></div>
+  <div class="disabled-wrap" id="disabled-box" hidden>
+    <div class="disabled-card">
+      <div class="dc-icon">🚧</div>
+      <div class="dc-title">看板数据接口已停用</div>
+      <p class="dc-text">管理员暂时停用了数据接口，看板暂不展示监控数据。<br>接口恢复后将自动重新加载，无需刷新页面。</p>
+    </div>
+  </div>
+</main>
+
+<dialog id="dlg-trend">
+  <div class="head">
+    <h2 id="trend-title">存货曲线</h2>
+    <button onclick="closeTrend()">关闭</button>
+  </div>
+  <div id="trend-body"><p class="muted">加载中…</p></div>
+  <div id="trend-tip"></div>
+</dialog>
+<div id="meta-pop" role="dialog" aria-label="监控详情" hidden></div>
+<div class="toast" id="toast"></div>
+<footer class="site-footer" id="site-footer" hidden></footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* 弹窗/浮层打开时锁定背景滚动（含趋势弹窗、详情浮层、排序菜单） */
+function syncModalScrollLock() {
+  const isOpen = id => {
+    const el = document.getElementById(id);
+    return !!el && !el.hidden;
+  };
+  const lock = document.querySelectorAll("dialog[open]").length > 0 ||
+               isOpen("meta-pop") || isOpen("sort-menu");
+  document.documentElement.classList.toggle("modal-open", lock);
+  document.body.classList.toggle("modal-open", lock);
+}
+(function () {
+  const show = HTMLDialogElement.prototype.showModal;
+  const close = HTMLDialogElement.prototype.close;
+  HTMLDialogElement.prototype.showModal = function () { show.call(this); syncModalScrollLock(); };
+  HTMLDialogElement.prototype.close = function (...args) { close.apply(this, args); syncModalScrollLock(); };
+  document.addEventListener("close", syncModalScrollLock, true);
+})();
+
+let items = [];
+let activeGroup = "all";   // 当前筛选分组："all" / "" (未分组) / 分组名
+let metaFor = null;   // 当前悬浮显示详情的监控项 id
+
+function closeMeta() {
+  metaFor = null;
+  $("meta-pop").hidden = true;
+  syncModalScrollLock();
+}
+
+function openMeta(id, evt) {
+  evt.stopPropagation();
+  const pop = $("meta-pop");
+  if (!pop.hidden && metaFor === id) { closeMeta(); return; }
+  const m = items.find(x => x.id === id);
+  if (!m) return;
+  metaFor = id;
+  pop.innerHTML = metaPills(m);
+  pop.hidden = false;
+  // 宽度不超过卡片，位置也限制在卡片范围内，避免盖到相邻卡片
+  const card = evt.currentTarget.closest(".card");
+  const cr = card.getBoundingClientRect();
+  pop.style.maxWidth = `${Math.max(180, Math.min(360, cr.width - 16))}px`;
+  pop.style.maxHeight = `${Math.max(120, cr.height - 16)}px`;
+  pop.style.overflowY = "auto";
+  pop.style.visibility = "hidden";
+  const btn = evt.currentTarget.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  let left = Math.max(cr.left + 8, Math.min(btn.left, cr.right - box.width - 8));
+  let top = btn.top - box.height - 8;
+  if (top < cr.top + 8) top = btn.bottom + 8;
+  if (top + box.height > cr.bottom - 8) {
+    top = Math.max(cr.top + 8, cr.bottom - box.height - 8);
+  }
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.visibility = "visible";
+  syncModalScrollLock();
+}
+
+document.addEventListener("click", e => {
+  if ($("meta-pop").hidden) return;
+  if (e.target.closest("#meta-pop") || e.target.closest(".meta-toggle")) return;
+  closeMeta();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMeta(); });
+window.addEventListener("resize", closeMeta);
+window.addEventListener("scroll", closeMeta, true);
+
+let collapsedGroups = new Set();   // 已收起的分组，记住选择
+try {
+  collapsedGroups = new Set(JSON.parse(localStorage.getItem("wm-stock-collapsed") || "[]"));
+} catch { /* 存储不可用时忽略 */ }
+
+let publicGroups = [];   // 后台拖动保存的分组顺序
+let groupIcons = {};     // 分组图标映射 {分组名: emoji}，后台设置的分组图标
+let allTabIcon = "";     // 「全部」标签图标（空 = 默认 🗂）
+const DEFAULT_GROUP_ICON = "📁";
+const ALL_TAB_DEFAULT_ICON = "🗂";
+const iconOf = g => groupIcons[g] || DEFAULT_GROUP_ICON;
+const allIconOf = () => allTabIcon || ALL_TAB_DEFAULT_ICON;
+
+function groupList() {
+  const names = [...new Set(items.map(m => m.group_name || ""))];
+  const rank = new Map(publicGroups.map((g, i) => [g, i]));
+  return names.sort((a, b) => {
+    const ra = rank.has(a) ? rank.get(a) : 1e9;
+    const rb = rank.has(b) ? rank.get(b) : 1e9;
+    return ra - rb || (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "zh"));
+  });
+}
+
+function toggleGroupIdx(gi) {
+  const g = groupList()[gi];
+  if (g === undefined) return;
+  collapsedGroups.has(g) ? collapsedGroups.delete(g) : collapsedGroups.add(g);
+  try {
+    localStorage.setItem("wm-stock-collapsed", JSON.stringify([...collapsedGroups]));
+  } catch { /* 忽略 */ }
+  render();
+}
+const SORT_OPTIONS = [
+  { key: "default", label: "默认排序" },
+  { key: "stock_first", label: "有货优先" },
+  { key: "price_asc", label: "价格从低到高" },
+  { key: "price_desc", label: "价格从高到低" },
+  { key: "remaining_desc", label: "剩余从多到少" },
+  { key: "remaining_asc", label: "剩余从少到多" },
+  { key: "stock_desc", label: "总量从多到少" },
+  { key: "stock_asc", label: "总量从少到多" },
+
+  { key: "rate_desc", label: "有货率从高到低" },
+  { key: "rate_asc", label: "有货率从低到高" },
+];
+let sortKey = localStorage.getItem("wm-stock-sort") || "default";
+if (!SORT_OPTIONS.some(o => o.key === sortKey)) sortKey = "default";
+
+function sortLabel() {
+  return (SORT_OPTIONS.find(o => o.key === sortKey) || SORT_OPTIONS[0]).label;
+}
+
+function renderSortLabel() {
+  $("sort-label").textContent = "⇅ " + sortLabel();
+}
+
+function renderSortMenu() {
+  $("sort-menu").innerHTML = SORT_OPTIONS.map(o =>
+    `<button type="button" role="option" aria-selected="${o.key === sortKey}"
+      class="${o.key === sortKey ? "active" : ""}" onclick="setSort('${o.key}')">${esc(o.label)}</button>`
+  ).join("");
+}
+
+function toggleSortMenu(ev) {
+  ev.stopPropagation();
+  const menu = $("sort-menu");
+  if (!menu.hidden) { closeSortMenu(); return; }
+  menu.hidden = false;
+  syncModalScrollLock();
+  // 用 fixed 定位贴到按钮下方，避免被标题栏或容器裁切
+  const btn = $("sort-btn").getBoundingClientRect();
+  const width = menu.offsetWidth;
+  let left = btn.right - width;
+  left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+  let top = btn.bottom + 6;
+  if (top + menu.offsetHeight > window.innerHeight - 8) {
+    top = Math.max(8, btn.top - menu.offsetHeight - 6);
+  }
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+  $("sort-btn").setAttribute("aria-expanded", "true");
+}
+
+function closeSortMenu() {
+  $("sort-menu").hidden = true;
+  $("sort-btn").setAttribute("aria-expanded", "false");
+  syncModalScrollLock();
+}
+
+function setSort(key) {
+  sortKey = key;
+  localStorage.setItem("wm-stock-sort", key);
+  closeSortMenu();
+  renderSortMenu();
+  renderSortLabel();
+  render();
+}
+
+document.addEventListener("click", e => {
+  if (!e.target.closest("#sort-wrap")) closeSortMenu();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeSortMenu();
+});
+window.addEventListener("scroll", e => {
+  // 菜单自身的滚动不关闭菜单，否则鼠标滚轮一滚就收起
+  if (e.target instanceof Element && e.target.closest("#sort-menu")) return;
+  closeSortMenu();
+}, true);
+window.addEventListener("resize", closeSortMenu);
+
+function sortNum(m, key, fallback) {
+  const v = m.data ? m.data[key] : undefined;
+  return typeof v === "number" ? v : fallback;
+}
+
+function applySort(list) {
+  const arr = [...list];
+  const inStock = m => (m.data && m.data.in_stock === true) ? 1 : 0;
+  switch (sortKey) {
+    case "stock_first":
+      return arr.sort((a, b) => inStock(b) - inStock(a)
+        || sortNum(b, "remaining", -Infinity) - sortNum(a, "remaining", -Infinity));
+    case "price_asc":
+      return arr.sort((a, b) => sortNum(a, "price", Infinity) - sortNum(b, "price", Infinity));
+    case "price_desc":
+      return arr.sort((a, b) => sortNum(b, "price", -Infinity) - sortNum(a, "price", -Infinity));
+    case "remaining_desc":
+      return arr.sort((a, b) => sortNum(b, "remaining", -Infinity) - sortNum(a, "remaining", -Infinity));
+    case "remaining_asc":
+      return arr.sort((a, b) => sortNum(a, "remaining", Infinity) - sortNum(b, "remaining", Infinity));
+    case "stock_desc":
+      return arr.sort((a, b) => sortNum(b, "stock", -Infinity) - sortNum(a, "stock", -Infinity));
+    case "stock_asc":
+      return arr.sort((a, b) => sortNum(a, "stock", Infinity) - sortNum(b, "stock", Infinity));
+    case "rate_desc":
+      return arr.sort((a, b) => (b.success_rate ?? -1) - (a.success_rate ?? -1));
+    case "rate_asc":
+      return arr.sort((a, b) => (a.success_rate ?? -1) - (b.success_rate ?? -1));
+    default:
+      return arr;
+  }
+}
+
+function switchGroupIdx(idx) {
+  // 必须与 render() 里按钮的顺序一致（同样走 groupList，含后台拖动保存的顺序）
+  const allGroups = groupList();
+  activeGroup = idx === -1 ? "all" : (allGroups[idx] ?? "all");
+  render();
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fmtWindows(raw) {
+  if (!raw) return "";
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(w => `${w.start}-${w.end}`).join(", ") : "";
+  } catch { return ""; }
+}
+function priceTypeLabel(v) {
+  return { new_user: "新用户首年价", renew: "老用户续费价", normal: "常规价" }[v] || "";
+}
+function realnameLabel(v) {
+  return v === "yes" ? "需实名" : v === "no" ? "无需实名" : "";
+}
+function toast(msg, isError = false) {
+  const t = $("toast");
+  // 模态 <dialog> 在浏览器顶层渲染，z-index 再高也会被盖住；有弹窗打开时把 toast 挪进弹窗里
+  const dlg = document.querySelector("dialog[open]");
+  const host = dlg || document.body;
+  if (t.parentElement !== host) host.appendChild(t);
+  t.textContent = msg;
+  t.className = "toast show" + (isError ? " error" : "");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+function fmtTime(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts * 1000), now = new Date();
+  const hmss = d.toLocaleTimeString("zh-CN", { hour12: false });
+  return d.toDateString() === now.toDateString() ? hmss : `${d.getMonth() + 1}/${d.getDate()} ${hmss}`;
+}
+function fmtIn(ts) {
+  if (!ts) return "—";
+  const delta = Math.round(ts - Date.now() / 1000);
+  if (delta <= 0) return "即将执行";
+  if (delta < 60) return `${delta} 秒后`;
+  if (delta < 3600) return `${Math.floor(delta / 60)} 分后`;
+  return `${Math.floor(delta / 3600)} 小时后`;
+}
+
+/* 常见 data 字段的中文标签（未识别的键原样展示） */
+const KEY_LABELS = {
+  goods: "商品", in_stock: "有货", percent: "进度", progress: "已抢", remaining: "剩余",
+  sku: "规格", price: "价格", stock: "总量", usage: "已抢",
+  total_per_day: "每日总量", sold_per_day: "今日已售",
+  host: "主机", port: "端口", url: "地址", keyword: "关键词", cost_ms: "耗时(ms)",
+  len: "长度", code: "状态码", script: "脚本", time: "时间",
+};
+/* 字段值的语义配色：返回配色类名（空串=默认白字） */
+function kvColor(k, v) {
+  if (k === "in_stock") return v ? "b-green" : "b-red";
+  if (k === "remaining") return (v === null || v === undefined) ? "" : (Number(v) > 0 ? "b-green" : "b-red");
+  if (k === "percent" || k === "progress") return "b-yellow";
+  if (k === "price") return "b-green";
+  if (k === "stock") return "b-purple";
+  if (k === "usage") return "b-red";
+  if (k === "sku") return "b-accent";
+  if (k === "total_per_day") return "b-purple";
+  if (k === "sold_per_day") return "b-red";
+  if (k === "host" || k === "url") return "b-accent";
+  if (k === "port" || k === "cost_ms") return "b-yellow";
+  return "";
+}
+/* 配色类名 -> 色点用的 CSS 变量 */
+const COLOR_VAR = {
+  "b-accent": "var(--accent)", "b-green": "var(--green)", "b-red": "var(--red)",
+  "b-yellow": "var(--yellow)", "b-purple": "var(--purple)",
+};
+function fmtVal(v) {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "boolean") return v ? "是" : "否";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+/* 规格文字里的关键参数上色：CPU/内存、带宽、磁盘、流量、年限 */
+function highlightSku(text) {
+  let html = esc(text || "");
+  const patterns = [
+    [/(\d+C\d+G)/gi, "hl-cpu"],
+    [/(\d+\s*核\s*\d+\s*G)/g, "hl-cpu"],
+    [/(\d+\s*[MG]\s*峰值带宽)/g, "hl-net"],
+    [/(\d+\s*[MG]\s*带宽)/g, "hl-net"],
+    [/(\d+\s*G\s*SSD[^-\/，,\s]*)/g, "hl-disk"],
+    [/(\d+\s*G\s*月流量)/g, "hl-flow"],
+    [/(\d+\s*年)/g, "hl-time"],
+  ];
+  for (const [re, cls] of patterns) {
+    html = html.replace(re, `<em class="${cls}">$1</em>`);
+  }
+  return html;
+}
+
+function kvEntries(data) {
+  if (!data || typeof data !== "object") return [];
+  // usage / progress 都是「已抢」，与「剩余 / 总量」重复，看板统一不展示
+  // url / site_url 已在服务端剥掉（跳转走加密 go 链接），这里兜底再滤一次
+  const hidden = new Set(["usage", "progress", "url", "site_url"]);
+  if (typeof data.in_stock === "boolean") {
+    ["url", "site_url", "sku", "in_stock", "percent", "percent_based"].forEach(k => hidden.add(k));
+  }
+  const isPct = !!data.percent_based;
+  const ORDER = ["price", "remaining", "stock"];
+  const rank = k => { const i = ORDER.indexOf(k); return i === -1 ? ORDER.length : i; };
+  return Object.entries(data).filter(([k]) => !hidden.has(k))
+    .sort((a, b) => rank(a[0]) - rank(b[0]))
+    .map(([k, v]) => {
+    let value = fmtVal(v);
+    if (k === "in_stock") value = v ? "有货" : "无货";
+    if (k === "price" && typeof v === "number") value = `${Number(v.toFixed(2))} 元/年`;
+    if (["remaining", "stock", "usage"].includes(k) && typeof v === "number") {
+      value = isPct ? `${v}%` : `${v} 台`;
+    }   // 比是/否更直观
+    return { label: KEY_LABELS[k] || k, value, color: kvColor(k, v) };
+  });
+}
+
+async function load() {
+  try {
+    const resp = await fetch("/api/public/stock");
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    items = data.items || [];
+    publicGroups = data.groups || [];
+    groupIcons = data.group_icons || {};
+    allTabIcon = data.all_icon || "";
+    // 网站基础信息：看板标题 / 页脚跟随后台「网站设置」
+    if (data.site) {
+      const st = data.site.stock_title || "服务器存量看板";
+      $("stock-title").textContent = st;
+      document.title = st;
+      const f = $("site-footer");
+      if (data.site.footer) { f.textContent = data.site.footer; f.hidden = false; }
+    }
+    $("disabled-box").hidden = true;
+    render();
+    $("updated").innerHTML = `<span class="live"></span>数据更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
+    $("err").hidden = true;
+  } catch (e) {
+    // 接口被管理员停用：展示友好的占位卡片，恢复后轮询会自动重新加载
+    if (String(e.message).includes("已被管理员停用")) {
+      showDisabledCard();
+    } else {
+      $("disabled-box").hidden = true;
+      $("err").textContent = "加载失败：" + e.message + "（稍后自动重试）";
+      $("err").hidden = false;
+    }
+  }
+}
+
+function showDisabledCard() {
+  $("err").hidden = true;
+  $("empty").hidden = true;
+  $("filterbar").hidden = true;
+  $("list").innerHTML = "";
+  $("disabled-box").hidden = false;
+}
+
+function render() {
+  const bar = $("filterbar");
+  const allGroups = groupList();
+  if (items.length) {
+    bar.hidden = false;
+    const btn = (idx, icon, label, n, active) =>
+      `<button class="${active ? "active" : ""}" onclick="switchGroupIdx(${idx})"><span class="t-ic">${icon}</span><span>${esc(label)}</span><b>${n}</b></button>`;
+    bar.innerHTML =
+      btn(-1, allIconOf(), "全部", items.length, activeGroup === "all") +
+      allGroups.map((g, i) => btn(i, g === "" ? DEFAULT_GROUP_ICON : iconOf(g),
+        g === "" ? "未分组" : g,
+        items.filter(m => (m.group_name || "") === g).length, activeGroup === g)).join("");
+  } else {
+    bar.hidden = true;
+  }
+
+  const box = $("list");
+  $("empty").hidden = items.length > 0;
+  const withStock = items.filter(m => m.data && typeof m.data.in_stock === "boolean");
+  const inStock = withStock.filter(m => m.data.in_stock).length;
+  const soldOut = withStock.length - inStock;
+  const ok = items.filter(m => m.status === "ok").length;
+  const fail = items.filter(m => m.status === "fail").length;
+  const pending = items.length - ok - fail;
+  let chips =
+    `<span class="chip info"><span class="cdot"></span>服务器 <b>${items.length}</b></span>` +
+    (withStock.length
+      ? `<span class="chip good"><span class="cdot"></span>有货 <b>${inStock}</b></span>` +
+        `<span class="chip bad"><span class="cdot"></span>无货 <b>${soldOut}</b></span>`
+      : `<span class="chip good"><span class="cdot"></span>正常 <b>${ok}</b></span>` +
+        `<span class="chip bad"><span class="cdot"></span>异常 <b>${fail}</b></span>`) +
+    (pending ? `<span class="chip warn"><span class="cdot"></span>待检 <b>${pending}</b></span>` : "");
+  $("chips").innerHTML = chips;
+
+  const cardHtml = m => {
+    const stockCard = !!(m.data && typeof m.data.in_stock === "boolean");
+    const st = m.running ? { cls: "spin", text: "采集中" }
+      : m.status === "ok" ? { cls: "ok", text: stockCard ? "有货" : "正常" }
+      : m.status === "fail" ? { cls: "fail", text: stockCard ? "无货" : "异常" }
+      : { cls: "pending", text: "待首次采集" };
+    const stockCls = m.data?.in_stock === true ? " stock-yes"
+      : m.data?.in_stock === false ? " stock-no" : "";
+    const stockBadge = m.data?.in_stock === true ? "badge-yes"
+      : m.data?.in_stock === false ? "badge-no" : "";
+    const kvs = kvEntries(m.data);
+    const rate = m.success_rate;
+    const rateCls = rate === null || rate === undefined ? ""
+      : rate >= 90 ? "b-green" : rate >= 70 ? "b-yellow" : "b-red";
+    return `
+    <div class="card${stockCls}">
+      <div class="top">
+        <span class="dot ${st.cls}" title="${st.text}"></span>
+        <span class="name" title="${esc(m.name)}">${esc(m.name)}</span>
+        <span class="badge ${stockBadge}">${st.text}</span>
+      </div>
+      <div class="stock-line ${m.status === "fail" ? "fail" : "ok"}">${esc(m.message) || "暂无数据"}</div>
+      ${m.data && m.data.sku
+        ? `<div class="spec-line"><span class="spec-tag">规格</span><span class="spec-text">${highlightSku(m.data.sku)}</span></div>`
+        : ""}
+      ${kvs.length ? `<div class="stats">${kvs.map(e =>
+        `<span class="item" style="--tile-accent:${COLOR_VAR[e.color] || "var(--border)"}"><span class="k">${esc(e.label)}</span><b class="${e.color}">${esc(e.value)}</b></span>`
+      ).join("")}</div>` : ""}
+      <div class="actions">
+        <button class="meta-toggle" onclick="openMeta(${m.id}, event)" title="悬浮查看监控时段 / 厂商 / 价格等详情">详情</button>
+        <button class="chart-btn" onclick="openTrend(${m.id})" title="查看最近存货变化曲线">📈 曲线</button>
+        ${m.go
+          ? `<a class="chart-btn site-btn" href="${esc(m.go)}" target="_blank" rel="noopener noreferrer" title="前往对应活动站点">🔗 前往站点</a>`
+          : ""}
+      </div>
+    </div>`;
+  };
+
+  if (activeGroup === "all") {
+    // 全部视图：按分组展示，点标题展开 / 收起
+    box.innerHTML = groupList().map((g, gi) => {
+      const list = applySort(items.filter(m => (m.group_name || "") === g));
+      if (!list.length) return "";
+      const collapsed = collapsedGroups.has(g);
+      const label = g === "" ? `${DEFAULT_GROUP_ICON} 未分组` : `${iconOf(g)} ${g}`;
+      return `
+      <div class="group-head ${collapsed ? "collapsed" : ""}" onclick="toggleGroupIdx(${gi})" title="点击${collapsed ? "展开" : "收起"}该分组">
+        <span class="arrow">▼</span><span>${esc(label)}</span>
+        <span class="cnt">${list.length} 项</span>
+      </div>
+      <div class="grid" data-group="${esc(g)}" ${collapsed ? "hidden" : ""}>${list.map(cardHtml).join("")}</div>`;
+    }).join("");
+  } else {
+    const list = applySort(items.filter(m => (m.group_name || "") === activeGroup));
+    box.innerHTML = `<div class="grid" data-group="${esc(activeGroup)}">${list.map(cardHtml).join("")}</div>`;
+  }
+}
+
+/* 悬浮详情里的标签内容 */
+function metaPills(m) {
+  const stockCard = !!(m.data && typeof m.data.in_stock === "boolean");
+  const rate = m.success_rate;
+  const rateCls = rate === null || rate === undefined ? ""
+    : rate >= 90 ? "b-green" : rate >= 70 ? "b-yellow" : "b-red";
+  return `
+    <span class="pill" title="${m.active_windows ? `仅在北京时间 ${esc(fmtWindows(m.active_windows))} 监控` : "全天监控"}"><span class="ic">⏰</span><b class="b-yellow">${m.active_windows ? esc(fmtWindows(m.active_windows)) : "00:00-24:00"}</b></span>
+    ${m.vendor ? `<span class="pill" title="厂商"><span class="ic">🏢</span><b class="b-accent">${esc(m.vendor)}</b></span>` : ""}
+    ${m.region ? `<span class="pill" title="地区"><span class="ic">📍</span><b class="b-accent">${esc(m.region)}</b></span>` : ""}
+    ${priceTypeLabel(m.price_type) ? `<span class="pill" title="价格类型"><span class="ic">🏷️</span><b class="b-green">${esc(priceTypeLabel(m.price_type))}</b></span>` : ""}
+    ${m.purchase_limit > 0 ? `<span class="pill" title="限购数量"><span class="ic">🧾</span><b class="b-yellow">限购 ${m.purchase_limit} 个</b></span>` : ""}
+    ${realnameLabel(m.realname) ? `<span class="pill" title="实名要求"><span class="ic">🪪</span><b class="b-purple">${esc(realnameLabel(m.realname))}</b></span>` : ""}
+    <span class="pill"><span class="ic">🕒</span>最近 <b class="b-accent">${m.last_run_at ? fmtTime(m.last_run_at) : "—"}</b></span>
+    <span class="pill"><span class="ic">⏭️</span>下次 <b class="b-purple">${fmtIn(m.next_run_at || (m.last_run_at ? m.last_run_at + m.interval_seconds : null))}</b></span>
+    <span class="pill"><span class="ic">⏱️</span>间隔 <b class="b-yellow">${m.interval_seconds}s</b></span>
+    ${rateCls ? `<span class="pill" title="只统计北京时间今天 0 点以后的执行，每日 0 点重置"><span class="ic">📊</span>${stockCard ? "今日有货率" : "今日成功率"} <b class="${rateCls}">${rate}%</b></span>` : ""}`;
+}
+
+/* ---------------- 存货曲线 ---------------- */
+let trendPoints = [];
+
+function fmtClock(ts) {
+  return new Date(ts * 1000).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtTrendTime(ts, withSecond = false) {
+  const d = new Date(ts * 1000);
+  const opt = { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false };
+  if (withSecond) opt.second = "2-digit";
+  return d.toLocaleString("zh-CN", opt);
+}
+
+function trendSeries(runs) {
+  return runs.map(r => {
+    const d = r.data || {};
+    let stock = null, label = "";
+    if (typeof d.remaining === "number") {
+      stock = d.remaining; label = "剩余(台)";
+    } else if (d.in_stock === false || d.in_stock === true) {
+      // 无场次时 in_stock=false，即使 progress=0 也应算“没有可抢的货”
+      stock = d.in_stock ? 100 : 0; label = "可抢(%)";
+      if (typeof d.percent === "number") { stock = 100 - d.percent; label = "可抢(%)"; }
+      else if (typeof d.progress === "number" && d.in_stock) { stock = 100 - d.progress; label = "可抢(%)"; }
+    }
+    return { ts: r.started_at, stock, label, ok: r.ok, message: r.message };
+  }).filter(p => p.stock !== null && p.ts);
+}
+
+async function openTrend(id) {
+  const m = items.find(x => x.id === id);
+  $("trend-title").textContent = `存货曲线 · ${m ? m.name : "#" + id}`;
+  $("trend-body").innerHTML = '<p class="muted">加载中…</p>';
+  $("dlg-trend").showModal();
+  try {
+    // 只看今天 00:00 到现在的数据
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const since = Math.floor(start.getTime() / 1000);
+    const resp = await fetch(`/api/public/stock/${id}/runs?limit=5000&since=${since}`);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    drawTrend(data.items || []);
+  } catch (e) {
+    $("trend-body").innerHTML = `<p class="muted">加载失败：${esc(e.message)}</p>`;
+  }
+}
+
+function closeTrend() { hideTip(); $("dlg-trend").close(); }
+
+function downsample(points, max = 240) {
+  if (points.length <= max) return points;
+  const stride = Math.ceil(points.length / max);
+  const out = [];
+  for (let i = 0; i < points.length; i += stride) {
+    const chunk = points.slice(i, i + stride);
+    const avg = chunk.reduce((s, p) => s + p.stock, 0) / chunk.length;
+    out.push({ ...chunk[chunk.length - 1], stock: Math.round(avg * 10) / 10 });
+  }
+  return out;
+}
+
+function drawTrend(runs) {
+  const series = trendSeries(runs);
+  const rawCount = series.length;
+  trendPoints = downsample(series);
+  if (!trendPoints.length) {
+    $("trend-body").innerHTML = '<p class="muted">今天还没有带存货数据的执行记录</p>';
+    return;
+  }
+  const W = 820, H = 280, L = 52, R = 18, T = 18, B = 36;
+  const label = trendPoints[0].label;
+  const isPercent = label === "可抢(%)";
+  const yMax = isPercent ? 100
+    : Math.max(10, Math.ceil(Math.max(...trendPoints.map(p => p.stock)) * 1.15));
+  // 横轴固定为「今天 00:00 → 现在」，数据按真实时间落点
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const t0 = Math.floor(dayStart.getTime() / 1000);
+  const lastTs = trendPoints[trendPoints.length - 1].ts;
+  const firstTs = trendPoints[0].ts;
+  const t1 = Math.max(Math.floor(Date.now() / 1000), lastTs, t0 + 60);
+  const x = ts => L + (ts - t0) / (t1 - t0) * (W - L - R);
+  const y = v => T + (yMax - v) / yMax * (H - T - B);
+  const poly = trendPoints.map(p => `${x(p.ts).toFixed(1)},${y(p.stock).toFixed(1)}`).join(" ");
+  const area = `${x(firstTs).toFixed(1)},${H - B} ${poly} ${x(lastTs).toFixed(1)},${H - B}`;
+  const grid = [0, .25, .5, .75, 1].map(f => {
+    const gy = T + f * (H - T - B);
+    const val = Math.round(yMax * (1 - f));
+    return `<line x1="${L}" y1="${gy}" x2="${W - R}" y2="${gy}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 5" opacity=".8"/>`
+      + `<text x="${L - 8}" y="${gy + 4}" text-anchor="end" fill="var(--text-dim)" font-size="11">${val}</text>`;
+  }).join("");
+  const xlabels = [t0, (t0 + t1) / 2, t1].map(ts =>
+    `<text x="${x(ts).toFixed(1)}" y="${H - 10}" text-anchor="middle" fill="var(--text-dim)" font-size="11">${esc(fmtClock(ts))}</text>`).join("");
+  // 透明命中区：画面上只显示折线，但鼠标靠近折线仍能看该时刻数值
+  const dots = trendPoints.map((p, i) =>
+    `<circle cx="${x(p.ts).toFixed(1)}" cy="${y(p.stock).toFixed(1)}" r="9"`
+    + ` fill="transparent" stroke="none" style="cursor:pointer"`
+    + ` onmousemove="showTip(event,${i})" onmouseleave="hideTip()"/>`).join("");
+
+  const unit = label === "剩余(台)" ? "台" : "%";
+  let maxI = 0, minI = 0;
+  trendPoints.forEach((p, i) => {
+    if (p.stock > trendPoints[maxI].stock) maxI = i;
+    if (p.stock < trendPoints[minI].stock) minI = i;
+  });
+  const placed = [];
+  function overlaps(a, b) {
+    return !(a.x + a.w + 6 < b.x || b.x + b.w + 6 < a.x
+      || a.y + a.h + 4 < b.y || b.y + b.h + 4 < a.y);
+  }
+  function labelBox(i, prefix, color, preferLeft = false) {
+    const p = trendPoints[i];
+    const px = x(p.ts), py = y(p.stock);
+    const text = `${prefix} ${p.stock}${unit} · ${fmtTrendTime(p.ts)}`;
+    const width = Math.max(96,
+      [...text].reduce((n, ch) => n + (ch.charCodeAt(0) > 255 ? 12 : 6.5), 0) + 18);
+    const height = 22;
+    let bx = preferLeft ? px - width - 10 : px + 10;
+    if (bx < L + 2) bx = px + 10;
+    if (bx + width > W - R - 2) bx = px - width - 10;
+    bx = Math.max(L + 2, Math.min(bx, W - R - width - 2));
+    let by = py - height - 8;
+    if (by < T + 2) by = py + 10;
+    by = Math.max(T + 2, Math.min(by, H - B - height - 2));
+    const box = { x: bx, y: by, w: width, h: height };
+    // 标签互相碰撞时向下（必要时向上）错开
+    for (let tries = 0; tries < 6 && placed.some(r => overlaps(box, r)); tries++) {
+      if (box.y + box.h + 6 <= H - B - 2) box.y += box.h + 6;
+      else box.y -= box.h + 6;
+      box.y = Math.max(T + 2, Math.min(box.y, H - B - box.h - 2));
+    }
+    placed.push(box);
+    // 带底色的标签框，避免折线穿过文字
+    return `<g><rect x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}"`
+      + ` height="${box.h}" rx="5" fill="var(--panel)" stroke="${color}" stroke-width="1" opacity="0.97"/>`
+      + `<text x="${(box.x + box.w / 2).toFixed(1)}" y="${(box.y + 15).toFixed(1)}" text-anchor="middle"`
+      + ` fill="${color}" font-size="12" font-weight="600">${esc(text)}</text></g>`;
+  }
+  const lastI = trendPoints.length - 1;
+  let extremes = "";
+  if (maxI === minI && maxI !== lastI) {
+    extremes = labelBox(maxI, "最高/最低", "var(--yellow)");
+  } else {
+    if (maxI !== lastI) extremes += labelBox(maxI, "最高", "var(--green)");
+    if (minI !== lastI) extremes += labelBox(minI, "最低", "var(--red)");
+  }
+  let latest;
+  if (lastI === maxI && lastI === minI) latest = labelBox(lastI, "最高/最低/最近", "var(--yellow)", true);
+  else if (lastI === maxI) latest = labelBox(lastI, "最高/最近", "var(--green)", true);
+  else if (lastI === minI) latest = labelBox(lastI, "最低/最近", "var(--red)", true);
+  else latest = labelBox(lastI, "最近", "var(--accent)", true);
+
+  const last = trendPoints[lastI];
+  const first = trendPoints[0];
+  const values = trendPoints.map(p => p.stock);
+  const maxVal = Math.max(...values);
+  const minVal = Math.min(...values);
+  const avgVal = values.reduce((a, b) => a + b, 0) / values.length;
+  const deltaVal = last.stock - first.stock;
+  const fmtNum = v => Number.isInteger(v) ? v : Math.round(v * 10) / 10;
+  const deltaText = deltaVal === 0 ? "与首次持平"
+    : (deltaVal > 0 ? `↑ ${fmtNum(deltaVal)}` : `↓ ${fmtNum(-deltaVal)}`);
+  const deltaCls = deltaVal > 0 ? "b-green" : deltaVal < 0 ? "b-red" : "muted";
+  const stockPct = Math.round(trendPoints.filter(p => p.stock > 0).length * 100 / trendPoints.length);
+  let flips = 0;
+  for (let i = 1; i < trendPoints.length; i++) {
+    if ((trendPoints[i].stock > 0) !== (trendPoints[i - 1].stock > 0)) flips++;
+  }
+
+  $("trend-body").innerHTML =
+    `<div class="trend-stats">
+       <div class="ts"><span class="k">最新${isPercent ? "可抢" : "剩余"}</span><b class="b-accent">${fmtNum(last.stock)}${unit}</b><span class="d ${deltaCls}">${deltaText}</span></div>
+       <div class="ts"><span class="k">今日最高</span><b class="b-green">${fmtNum(maxVal)}${unit}</b><span class="d">${esc(fmtTrendTime(trendPoints[maxI].ts))}</span></div>
+       <div class="ts"><span class="k">今日最低</span><b class="b-red">${fmtNum(minVal)}${unit}</b><span class="d">${esc(fmtTrendTime(trendPoints[minI].ts))}</span></div>
+       <div class="ts"><span class="k">有货占比</span><b class="${stockPct >= 50 ? "b-green" : "b-red"}">${stockPct}%</b><span class="d">状态变化 ${flips} 次</span></div>
+     </div>`
+    + `<div id="trend-wrap"><svg id="trend-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`
+    + `<defs><linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">`
+    + `<stop offset="0" stop-color="var(--accent)" stop-opacity=".30"/>`
+    + `<stop offset="1" stop-color="var(--accent)" stop-opacity=".02"/></linearGradient></defs>`
+    + `${grid}<polygon points="${area}" fill="url(#trend-fill)"/>`
+    + `<polyline points="${poly}" fill="none" stroke="var(--accent)" stroke-width="2"/>`
+    + `<circle cx="${x(last.ts).toFixed(1)}" cy="${y(last.stock).toFixed(1)}" r="3.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="1.5"/>`
+    + `${extremes}${latest}${dots}${xlabels}</svg></div>`
+    + `<div id="trend-meta">
+         <span>🕒 今日 <b>00:00 – ${fmtClock(t1)}</b></span>
+         <span>📊 采样 <b>${rawCount}</b> 条（图上 ${trendPoints.length} 点）</span>
+         <span>📈 平均 <b>${fmtNum(avgVal)}${unit}</b></span>
+         ${last.message ? `<span title="${esc(last.message)}">💬 <b>${esc(last.message)}</b></span>` : ""}
+       </div>`;
+}
+
+function showTip(evt, idx) {
+  const p = trendPoints[idx];
+  if (!p) return;
+  const tip = $("trend-tip");
+  tip.innerHTML = `<div>${esc(fmtTrendTime(p.ts, true))}</div>`
+    + `<div>${esc(p.label)}：<b>${esc(p.stock)}</b></div>`
+    + `<div class="muted">${esc(p.message || "")}</div>`;
+  tip.style.display = "block";
+  // 浮层放在 dialog 内并用相对坐标，避免被模态框的顶层遮挡；靠近边缘时自动翻转
+  const box = $("dlg-trend").getBoundingClientRect();
+  const pad = 14;
+  let left = evt.clientX - box.left + pad;
+  let top = evt.clientY - box.top + pad;
+  if (left + tip.offsetWidth > box.width - 8) left = evt.clientX - box.left - tip.offsetWidth - pad;
+  if (top + tip.offsetHeight > box.height - 8) top = evt.clientY - box.top - tip.offsetHeight - pad;
+  tip.style.left = Math.max(8, left) + "px";
+  tip.style.top = Math.max(8, top) + "px";
+}
+function hideTip() { $("trend-tip").style.display = "none"; }
+
+/* ---------------- 深浅主题 ---------------- */
+function applyTheme(theme) {
+  document.documentElement.classList.toggle("light", theme === "light");
+  const btn = $("theme-btn");
+  if (btn) {
+    btn.textContent = theme === "light" ? "🌙 深色" : "☀️ 浅色";
+    btn.title = theme === "light" ? "切换到深色主题" : "切换到浅色主题";
+  }
+  localStorage.setItem("wm-theme", theme);
+}
+function toggleTheme() {
+  applyTheme((localStorage.getItem("wm-theme") || "dark") === "light" ? "dark" : "light");
+}
+
+applyTheme(localStorage.getItem("wm-theme") || "dark");
+renderSortMenu();
+renderSortLabel();
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

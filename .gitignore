@@ -1,0 +1,15 @@
+# 运行时数据：数据库 / 会话密钥 / 日志 / 进程文件（含敏感信息，禁止上传）
+data/
+
+# Python 运行产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 系统杂项
+.DS_Store
+Thumbs.db
