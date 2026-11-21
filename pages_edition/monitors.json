@@ -1,0 +1,62 @@
+{
+  "site": {
+    "name": "网页监控平台",
+    "stock_title": "服务器存量看板",
+    "footer": "数据仅供参考，实际扣益看管官方页面"
+  },
+  "all_icon": "🗂",
+  "group_icons": {
+    "抢购": "🔥",
+    "普通": "🖥️"
+  },
+  "group_order": ["抢购", "普通"],
+  "monitors": [
+    {
+      "name": "腾讯云 轻量 2核2G4M 99元/年",
+      "group": "抢购",
+      "enabled": true,
+      "template": "tencent_lighthouse_stock",
+      "timeout": 30,
+      "params": {
+        "goods_id": "2001194084080021",
+        "goods": "轻量应用服务器 2核2G4M",
+        "sku": "2核2G4M / 3M带宽 / 300GB月流量 / 1年",
+        "price": 99,
+        "url": "https://cloud.tencent.com/act/pro/double11-202611#qingliang"
+      }
+    },
+    {
+      "name": "阿里云 轻量应用服务器 2核2G 38元/年 秒杀",
+      "group": "抢购",
+      "enabled": true,
+      "template": "aliyun_flash_stock",
+      "timeout": 30,
+      "params": {
+        "activity_id": "1613051415182591",
+        "goods": "轻量应用服务器 2核2G（38元/1年起）"
+      }
+    },
+    {
+      "name": "华为云 2核2G 特价机库存",
+      "group": "抢购",
+      "enabled": false,
+      "template": "huawei_stock",
+      "timeout": 30,
+      "params": {
+        "promotion_id": "P2608120945080031D691X61IVR22B",
+        "goods": "Flexus L实例-2核2G2M 1年（36元/年）"
+      }
+    },
+    {
+      "name": "接口可用性演示（百度首页）",
+      "group": "普通",
+      "enabled": false,
+      "template": "http",
+      "timeout": 15,
+      "params": {
+        "url": "https://www.baidu.com",
+        "expect_status": 200
+      }
+    }
+  ]
+}

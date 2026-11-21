@@ -41,8 +41,9 @@
     POST   /api/api-manage            启用 / 停用某个接口路由【登录】
 
 鉴权：除 login / logout / me / public/stock 外，所有 /api/* 都需要管理员登录
-（Flask session cookie，默认保留 7 天，且绑定登录时的协议与主机名——同一主机的
-不同端口共用登录，换主机 / IP / 协议需重新登录）。首次启动自动创建默认账号
+（Flask session cookie，默认保留 7 天；Cookie 名按端口区分、登录绑定入口的
+协议://主机:端口——同一主机的不同端口各自独立登录互不影响，
+换主机 / IP / 协议需重新登录）。首次启动自动创建默认账号
 admin / admin123，登录后请立即在右上角「修改密码」里改掉。
 """
 
@@ -57,7 +58,6 @@ import secrets
 import sys
 import threading
 import time
-from urllib.parse import urlsplit
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -65,6 +65,7 @@ from typing import Any, Dict, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).parent))  # 允许直接 python3 app.py 运行
 
 from flask import Flask, g, jsonify, redirect, request, send_from_directory, session
+from flask.sessions import SecureCookieSessionInterface
 
 from code_templates import TEMPLATES
 from notifier import Notifier, sample_notify_context
@@ -86,6 +87,27 @@ scheduler: Optional[Scheduler] = None
 # 登录会话密钥：占位值，main() 里替换为 data/secret_key 的持久化密钥（重启不失效）
 app.config["SECRET_KEY"] = secrets.token_hex(32)
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+
+
+def _cookie_port_suffix() -> str:
+    """从当前请求 Host 里取端口段，作会话 Cookie 名的一部分（顺带清洗非法字符）。"""
+    port = request.host.rsplit(":", 1)[-1]
+    return re.sub(r"\W+", "_", port) or "80"
+
+
+class PortSessionInterface(SecureCookieSessionInterface):
+    """按请求端口区分会话 Cookie 名。
+
+    Cookie 本身不区分端口（同主机各端口共享 Cookie 存储），不同端口共用
+    同一个 Cookie 名会导致「一边登录另一边被踢」。按端口命名
+    （如 wm_session_8787 / wm_session_5001）后，各入口的登录互不影响，
+    真正实现同一主机不同端口独立会话。"""
+
+    def get_cookie_name(self, app):
+        return f"wm_session_{_cookie_port_suffix()}"
+
+
+app.session_interface = PortSessionInterface()
 
 
 def _load_secret_key(data_dir: Path) -> str:
@@ -210,12 +232,10 @@ def _admin_message(raw: Any) -> str:
 
 
 def _request_origin() -> str:
-    """登录会话绑定的访问入口：协议 + 主机名（不含端口）。
-    Cookie 本身就不区分端口，绑定到主机名即可——同一主机的多个端口
-    （如本机 8787 直连入口与 IDE 预览入口）共用一次登录；
-    换主机 / IP / 协议仍需重新登录。"""
-    hostname = (urlsplit(f"//{request.host}").hostname or "").lower()
-    return f"{request.scheme}://{hostname}"
+    """登录会话绑定的访问入口：协议://主机:端口。
+    会话 Cookie 已按端口命名（见 PortSessionInterface），各端口的登录
+    相互独立、互不影响；换主机 / IP / 协议仍需重新登录。"""
+    return f"{request.scheme}://{request.host.lower()}"
 
 
 def _session_origin_ok() -> bool:
