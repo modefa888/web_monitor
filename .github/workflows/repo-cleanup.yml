@@ -1,0 +1,67 @@
+# 每周自动清理仓库历史（采集提交每 5 分钟一笔，一周约 2000 笔）
+#
+# 原理：
+#   用 git filter-repo 把 docs/data 与 pages_edition/state.json 从全部历史中
+#   剔除——只改这些文件的「采集结果更新」提交随之变空、被自动裁剪；代码提交
+#   原样保留。然后把当前最新数据补回为单个「看板数据快照」提交，强推 main。
+#   旧对象在 GitHub 后台 GC 后仓库体积回落（不会立即，一般需几天）。
+#
+# 注意：
+#   - 重写会改变 main 上所有提交的哈希。本地克隆在每周清理后需要执行
+#     git fetch origin && git reset --hard origin/main 同步（本地如有未推
+#     提交，先推上去或另行备份）。
+#   - 与「监控采集」共用 concurrency 组串行执行，避免互相覆盖推送。
+name: 仓库历史清理
+
+on:
+  schedule:
+    - cron: "20 2 * * 1"           # 每周一 UTC 02:20（北京时间周一 10:20）
+  workflow_dispatch:               # 支持在 Actions 页面手动触发
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monitor-collect           # 与采集工作流共用，排队执行
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0           # 重写历史需要完整提交历史
+
+      - name: 安装 git-filter-repo
+        run: pip install git-filter-repo
+
+      - name: 压缩历史（保留代码提交，数据提交合并为一个快照）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          echo "清理前提交数：$(git rev-list --count HEAD)"
+
+          # 备份当前数据（filter-repo 会把指定路径从全部历史剔除）
+          rm -rf /tmp/wm-data /tmp/wm-state.json
+          cp -r docs/data /tmp/wm-data
+          cp pages_edition/state.json /tmp/wm-state.json
+
+          git filter-repo --force --invert-paths --path docs/data --path pages_edition/state.json
+
+          # filter-repo 的安全机制会移除 origin，恢复后用 checkout 自带凭据推送
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
+          # 最新数据补回为单个快照提交（保证 Pages 无空窗、采集状态不丢失）
+          mkdir -p docs pages_edition
+          cp -r /tmp/wm-data docs/data
+          cp /tmp/wm-state.json pages_edition/state.json
+          git add docs/data pages_edition/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "看板数据快照（每周清理时合并）$(date -u +%FT%TZ)"
+          fi
+
+          git push --force origin HEAD:main
+          echo "清理后提交数：$(git rev-list --count HEAD)"
