@@ -897,31 +897,38 @@ function render() {
   const box = $("list");
   $("empty").hidden = items.length > 0;
   const withStock = items.filter(m => m.data && typeof m.data.in_stock === "boolean");
-  const inStock = withStock.filter(m => m.data.in_stock).length;
-  const soldOut = withStock.length - inStock;
+  // error = 技术异常（真实库存状态未知），不计入有货/无货，单独归入异常
+  const inStock = withStock.filter(m => m.data.in_stock && m.status !== "error").length;
+  const soldOut = withStock.filter(m => !m.data.in_stock && m.status !== "error").length;
+  const stockErr = withStock.filter(m => m.status === "error").length;
   const ok = items.filter(m => m.status === "ok").length;
   const fail = items.filter(m => m.status === "fail").length;
-  const pending = items.length - ok - fail;
+  const err = items.filter(m => m.status === "error").length;
+  const pending = items.length - ok - fail - err;
   let chips =
     `<span class="chip info"><span class="cdot"></span>服务器 <b>${items.length}</b></span>` +
     (withStock.length
       ? `<span class="chip good"><span class="cdot"></span>有货 <b>${inStock}</b></span>` +
-        `<span class="chip bad"><span class="cdot"></span>无货 <b>${soldOut}</b></span>`
+        `<span class="chip bad"><span class="cdot"></span>无货 <b>${soldOut}</b></span>` +
+        (stockErr ? `<span class="chip warn"><span class="cdot"></span>异常 <b>${stockErr}</b></span>` : "")
       : `<span class="chip good"><span class="cdot"></span>正常 <b>${ok}</b></span>` +
-        `<span class="chip bad"><span class="cdot"></span>异常 <b>${fail}</b></span>`) +
+        `<span class="chip bad"><span class="cdot"></span>异常 <b>${fail + err}</b></span>`) +
     (pending ? `<span class="chip warn"><span class="cdot"></span>待检 <b>${pending}</b></span>` : "");
   $("chips").innerHTML = chips;
 
   const cardHtml = m => {
     const stockCard = !!(m.data && typeof m.data.in_stock === "boolean");
+    // error（技术异常）无论是不是库存卡都显示"异常"：采集都没成功，不能断言无货
+    const errored = m.status === "error";
     const st = m.running ? { cls: "spin", text: "采集中" }
       : m.status === "ok" ? { cls: "ok", text: stockCard ? "有货" : "正常" }
       : m.status === "fail" ? { cls: "fail", text: stockCard ? "无货" : "异常" }
+      : errored ? { cls: "fail", text: "异常" }
       : { cls: "pending", text: "待首次采集" };
-    const stockCls = m.data?.in_stock === true ? " stock-yes"
-      : m.data?.in_stock === false ? " stock-no" : "";
-    const stockBadge = m.data?.in_stock === true ? "badge-yes"
-      : m.data?.in_stock === false ? "badge-no" : "";
+    const stockCls = errored ? "" : (m.data?.in_stock === true ? " stock-yes"
+      : m.data?.in_stock === false ? " stock-no" : "");
+    const stockBadge = errored ? "" : (m.data?.in_stock === true ? "badge-yes"
+      : m.data?.in_stock === false ? "badge-no" : "");
     const kvs = kvEntries(m.data);
     const rate = m.success_rate;
     const rateCls = rate === null || rate === undefined ? ""
@@ -933,7 +940,7 @@ function render() {
         <span class="name" title="${esc(m.name)}">${esc(m.name)}</span>
         <span class="badge ${stockBadge}">${st.text}</span>
       </div>
-      <div class="stock-line ${m.status === "fail" ? "fail" : "ok"}">${esc(m.message) || "暂无数据"}</div>
+      <div class="stock-line ${(m.status === "fail" || m.status === "error") ? "fail" : "ok"}">${esc(m.message) || "暂无数据"}</div>
       ${m.data && m.data.sku
         ? `<div class="spec-line"><span class="spec-tag">规格</span><span class="spec-text">${highlightSku(m.data.sku)}</span></div>`
         : ""}

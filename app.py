@@ -69,7 +69,8 @@ from flask.sessions import SecureCookieSessionInterface
 
 from code_templates import TEMPLATES
 from notifier import Notifier, sample_notify_context
-from scheduler import Scheduler, run_code
+from scheduler import (Scheduler, is_technical_error as _is_technical_error,
+                       public_message as _public_message, run_code)
 from sitelink import MAX_URL_LEN, decode_site_token, encode_site_token
 from store import DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, Store
 
@@ -196,31 +197,6 @@ PUBLIC_HIDDEN_DATA_KEYS = {
 # 距上次成功超过「基础窗口 + 2 个采集间隔」仍失败才对外显示异常。
 # 仅公开接口生效，管理后台与推送通知始终立即反映真实状态。
 PUBLIC_ERROR_TOLERANT_SECONDS = 300
-
-_PUBLIC_ERROR_MARKERS = (
-    "Traceback", "Error:", "Exception", "NewConnectionError", "ConnectionError",
-    "HTTPSConnectionPool", "HTTPConnectionPool", "Max retries exceeded",
-    "NewConnectionError", "Connection refused", "Network is unreachable",
-    "timed out", "Timeout", "SSLError", "JSONDecodeError", "KeyError",
-    "TypeError", "ValueError", "IndexError", "AttributeError", "Errno",
-    "Caused by", "Failed to establish", "unreachable", "not known",
-    "requests.exceptions", "Connection aborted", "RemoteDisconnected",
-)
-
-
-def _is_technical_error(text: str) -> bool:
-    """是否为采集脚本抛出的技术异常（堆栈 / 连接错误 / 类型错误等）。"""
-    return bool(text) and any(
-        marker.lower() in text.lower() for marker in _PUBLIC_ERROR_MARKERS
-    )
-
-
-def _public_message(raw: Any) -> str:
-    """公开结果消息的脱敏：技术异常对外只显示一句友好提示。"""
-    text = str(raw or "")
-    if _is_technical_error(text):
-        return "数据获取异常，管理员正在处理"
-    return text
 
 
 def _admin_message(raw: Any) -> str:
@@ -727,11 +703,13 @@ def api_public_stock():
         # 技术异常容忍：偶尔一次采集失败（网络抖动等）继续展示上一次成功的
         # 快照，不让看板闪成红色异常；持续失败超过容忍窗口才对外显示异常。
         # 有意义的结果（如"已抢光"）不属于技术异常，照常展示。
-        if (ok_flag == 0 and _is_technical_error(message)):
+        technical = ok_flag == 0 and _is_technical_error(message)
+        if technical:
             tolerant = PUBLIC_ERROR_TOLERANT_SECONDS + 2 * float(m["interval_seconds"] or 30)
             last_ok_run = store.get_last_ok_run(m["id"])
             if last_ok_run and (now_ts - last_ok_run["started_at"]) <= tolerant:
                 ok_flag = 1
+                technical = False
                 message = last_ok_run["message"]
                 data = last_ok_run["data"]
         go_link = _go_link(_site_url_of(data), m["id"]) if data else ""
@@ -739,8 +717,12 @@ def api_public_stock():
             "id": m["id"],
             "name": m["name"],
             "group_name": m.get("group_name") or "",
+            # error = 采集脚本自身的技术异常（连真实库存状态都无法确认），
+            # 与 fail（采集成功、结果就是无货等有意义结论）区分开：
+            # 前者看板显示"异常"，绝不显示"无货"，避免与快照数据自相矛盾。
             "status": ("pending" if ok_flag is None
-                       else ("ok" if ok_flag else "fail")),
+                       else ("ok" if ok_flag
+                             else ("error" if technical else "fail"))),
             "running": bool(scheduler and scheduler.is_running(m["id"])),
             "message": _public_message(message),
             "data": _public_data(data),

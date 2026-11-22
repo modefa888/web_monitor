@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -145,6 +146,40 @@ def _parse_result(stdout: str, stderr: str, returncode: int) -> Tuple[bool, str,
     elif lines:
         reason = lines[-1][:400]
     return False, f"退出码 {returncode}{('：' + reason) if reason else ''}", None
+
+
+# 公开看板的“技术异常”识别标记：采集脚本自身出的问题（堆栈 / 连接错误 /
+# 超时 / 执行器错误等）不对外展示原文，统一替换成一句友好提示。
+# 中英文都要覆盖——执行器产出的超时、执行器错误消息是中文，只配英文标记会漏掉，
+# 导致容忍窗口失效、原始错误直接亮给访客（曾因此出现“无货 + 剩余 131 台”的矛盾展示）。
+_PUBLIC_ERROR_MARKERS = (
+    "Traceback", "Error:", "Exception", "NewConnectionError", "ConnectionError",
+    "HTTPSConnectionPool", "HTTPConnectionPool", "Max retries exceeded",
+    "NewConnectionError", "Connection refused", "Network is unreachable",
+    "timed out", "Timeout", "SSLError", "JSONDecodeError", "KeyError",
+    "TypeError", "ValueError", "IndexError", "AttributeError", "Errno",
+    "Caused by", "Failed to establish", "unreachable", "not known",
+    "requests.exceptions", "Connection aborted", "RemoteDisconnected",
+    "执行超时", "已强制终止", "执行器错误", "退出码",
+)
+
+# 慢执行备注是管理员信息（scheduler._record 追加到消息尾部），公开看板一并去除
+_SLOW_NOTE_RE = re.compile(r"\s*⚠\s*耗时\s*\d+ms\s*超过阈值\s*\d+ms")
+
+
+def is_technical_error(text: str) -> bool:
+    """是否为采集脚本抛出的技术异常（堆栈 / 连接错误 / 超时 / 执行器错误等）。"""
+    return bool(text) and any(
+        marker.lower() in text.lower() for marker in _PUBLIC_ERROR_MARKERS
+    )
+
+
+def public_message(raw: Any) -> str:
+    """公开结果消息的脱敏：技术异常只显示一句友好提示，慢执行备注一并去除。"""
+    text = str(raw or "")
+    if is_technical_error(text):
+        return "数据获取异常，管理员正在处理"
+    return _SLOW_NOTE_RE.sub("", text).strip()
 
 
 CN_TZ = timezone(timedelta(hours=8))     # 活动场次均按北京时间
