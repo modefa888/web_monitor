@@ -13,30 +13,11 @@
    1,
    1,
    1,
+   1,
    1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "轻量应用服务器 2核2G4M：有货！剩余 95744 台（总量 100000，已抢 4%）",
-    "data": {
-     "remaining": 95744,
-     "in_stock": true,
-     "percent": 4
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "轻量应用服务器 2核2G4M：有货！剩余 95724 台（总量 100000，已抢 4%）",
-    "data": {
-     "remaining": 95724,
-     "in_stock": true,
-     "percent": 4
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -56,12 +37,23 @@
      "in_stock": true,
      "percent": 4
     }
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "轻量应用服务器 2核2G4M：有货！剩余 95499 台（总量 100000，已抢 5%）",
+    "data": {
+     "remaining": 95499,
+     "in_stock": true,
+     "percent": 5
+    }
    }
   ]
  },
  "阿里云 轻量应用服务器 2核2G 38元/年 秒杀": {
-  "fails": 12,
+  "fails": 13,
   "history": [
+   0,
    0,
    0,
    0,
@@ -75,20 +67,8 @@
    0,
    0
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": false,
-    "message": "轻量应用服务器 2核2G（38元/1年起）：接口没有返回场次数据（活动可能已结束）",
-    "data": {}
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": false,
-    "message": "轻量应用服务器 2核2G（38元/1年起）：接口没有返回场次数据（活动可能已结束）",
-    "data": {}
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": false,
@@ -97,6 +77,12 @@
    },
    {
     "started_at": 1795473489.004715,
+    "ok": false,
+    "message": "轻量应用服务器 2核2G（38元/1年起）：接口没有返回场次数据（活动可能已结束）",
+    "data": {}
+   },
+   {
+    "started_at": 1795501427.1951957,
     "ok": false,
     "message": "轻量应用服务器 2核2G（38元/1年起）：接口没有返回场次数据（活动可能已结束）",
     "data": {}
@@ -114,30 +100,11 @@
    1,
    1,
    1,
+   1,
    1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "Flexus L实例-2核2G2M 1年（36元/年）：有货！剩余 127 台，今日 13/140，进度 9%",
-    "data": {
-     "remaining": 127,
-     "in_stock": true,
-     "percent": 9
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "Flexus L实例-2核2G2M 1年（36元/年）：有货！剩余 94 台，今日 46/140，进度 32%",
-    "data": {
-     "remaining": 94,
-     "in_stock": true,
-     "percent": 32
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -157,11 +124,21 @@
      "in_stock": true,
      "percent": 10
     }
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "Flexus L实例-2核2G2M 1年（36元/年）：有货！剩余 48 台，今日 92/140，进度 65%",
+    "data": {
+     "remaining": 48,
+     "in_stock": true,
+     "percent": 65
+    }
    }
   ]
  },
  "阿里云 轻量应用服务器 2核2G 200M 68元/年 新人专享": {
-  "fails": 1,
+  "fails": 0,
   "history": [
    1,
    1,
@@ -171,30 +148,11 @@
    1,
    1,
    1,
-   0
+   0,
+   1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "轻量应用服务器 2核2G 200M峰值带宽 68元/年 新人专享：可下单！折后 68 元/年（原价 459 元），优惠「阿里云平台新用户享折上折，68元1年」",
-    "data": {
-     "remaining": 100,
-     "in_stock": true,
-     "progress": 0.0
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "轻量应用服务器 2核2G 200M峰值带宽 68元/年 新人专享：可下单！折后 68 元/年（原价 459 元），优惠「阿里云平台新用户享折上折，68元1年」",
-    "data": {
-     "remaining": 100,
-     "in_stock": true,
-     "progress": 0.0
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -210,6 +168,16 @@
     "ok": false,
     "message": "数据获取异常，管理员正在处理",
     "data": {}
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "轻量应用服务器 2核2G 200M峰值带宽 68元/年 新人专享：可下单！折后 68 元/年（原价 459 元），优惠「阿里云平台新用户享折上折，68元1年」",
+    "data": {
+     "remaining": 100,
+     "in_stock": true,
+     "progress": 0.0
+    }
    }
   ]
  },
@@ -224,28 +192,11 @@
    1,
    1,
    1,
+   1,
    1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "2C2G-40G SSD系统盘-3M带宽-200G月流量：有货！剩余 8 台（本场 10，已抢 2）",
-    "data": {
-     "remaining": 8,
-     "in_stock": true
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "2C2G-40G SSD系统盘-3M带宽-200G月流量：有货！剩余 9 台（本场 10，已抢 1）",
-    "data": {
-     "remaining": 9,
-     "in_stock": true
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -263,6 +214,15 @@
      "remaining": 10,
      "in_stock": true
     }
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "2C2G-40G SSD系统盘-3M带宽-200G月流量：有货！剩余 3 台（本场 10，已抢 7）",
+    "data": {
+     "remaining": 3,
+     "in_stock": true
+    }
    }
   ]
  },
@@ -277,28 +237,11 @@
    1,
    1,
    1,
+   1,
    1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "2C4G-60G SSD系统盘-5M带宽-500G月流量：有货！剩余 14 台（本场 15，已抢 1）",
-    "data": {
-     "remaining": 14,
-     "in_stock": true
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "2C4G-60G SSD系统盘-5M带宽-500G月流量：有货！剩余 15 台（本场 15，已抢 0）",
-    "data": {
-     "remaining": 15,
-     "in_stock": true
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -316,6 +259,15 @@
      "remaining": 15,
      "in_stock": true
     }
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "2C4G-60G SSD系统盘-5M带宽-500G月流量：有货！剩余 9 台（本场 15，已抢 6）",
+    "data": {
+     "remaining": 9,
+     "in_stock": true
+    }
    }
   ]
  },
@@ -330,30 +282,11 @@
    1,
    1,
    1,
+   1,
    1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "轻量应用服务器 4核4G3M：有货！剩余 93231 台（总量 100000，已抢 7%）",
-    "data": {
-     "remaining": 93231,
-     "in_stock": true,
-     "percent": 7
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "轻量应用服务器 4核4G3M：有货！剩余 93187 台（总量 100000，已抢 7%）",
-    "data": {
-     "remaining": 93187,
-     "in_stock": true,
-     "percent": 7
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -373,6 +306,16 @@
      "in_stock": true,
      "percent": 7
     }
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "轻量应用服务器 4核4G3M：有货！剩余 92824 台（总量 100000，已抢 7%）",
+    "data": {
+     "remaining": 92824,
+     "in_stock": true,
+     "percent": 7
+    }
    }
   ]
  },
@@ -387,30 +330,11 @@
    1,
    1,
    1,
+   1,
    1
   ],
-  "last_ts": 1795473489.004715,
+  "last_ts": 1795501427.1951957,
   "trend": [
-   {
-    "started_at": 1795384950.1769812,
-    "ok": true,
-    "message": "轻量应用服务器 2核4G5M：有货！剩余 98606 台（总量 100000，已抢 1%）",
-    "data": {
-     "remaining": 98606,
-     "in_stock": true,
-     "percent": 1
-    }
-   },
-   {
-    "started_at": 1795401162.5162668,
-    "ok": true,
-    "message": "轻量应用服务器 2核4G5M：有货！剩余 98594 台（总量 100000，已抢 1%）",
-    "data": {
-     "remaining": 98594,
-     "in_stock": true,
-     "percent": 1
-    }
-   },
    {
     "started_at": 1795432215.0535727,
     "ok": true,
@@ -429,6 +353,16 @@
      "remaining": 98516,
      "in_stock": true,
      "percent": 1
+    }
+   },
+   {
+    "started_at": 1795501427.1951957,
+    "ok": true,
+    "message": "轻量应用服务器 2核4G5M：有货！剩余 98499 台（总量 100000，已抢 2%）",
+    "data": {
+     "remaining": 98499,
+     "in_stock": true,
+     "percent": 2
     }
    }
   ]
